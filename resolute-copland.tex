@@ -73,8 +73,8 @@ The abstract should briefly summarize the contents of the paper in
 \command{let,in,and,or}
 
 \begin{definition}[Compilation]\\
-  \comp{t}{L} defines compiling RESOLUTE term $t$ into a Copland
-  protocol in the context of AM library L.
+  \comp{t}{L} defines compiling \textsf{RESOLUTE} term $t$ into a
+  \textsf{Copland} protocol in the context of AM library L.
 \end{definition}
 
 \begin{definition}[Strategy] \\
@@ -84,6 +84,14 @@ The abstract should briefly summarize the contents of the paper in
 Specify the analysis strategy is using Copland with AM Library L to
 map interpreted RESOLUTE functions to their implementing ASPs.  The AM
 Library provides implementations for abstract analysis activities.
+
+\section{Claims and Rules}
+
+Inference rules taken from~\citet{gacek2014resolute}.
+
+\inference{\Gamma |- G_1 & \Gamma |- G_2}{\Gamma |- G_1 \wedge G_2}[$\wedge$]
+
+\inference{\Gamma |- G_i}{\Gamma |- G_1 \vee G_2}[$\vee_{i=1,2}$]
 
 \begin{definition}[Conjunction and Disjunction] \\
   \comp{$t_1$ \<and> $t_2$}{L} = \comp{$t_1$}{L} $\mathsf{+\!<\!+}$
@@ -97,7 +105,52 @@ sequential Copland ordering.  Appraise the result to determine if the
 conjunction or disjunction holds.  Attestation gathers evidence,
 appraisal determines if it adheres to policy.
 
-\begin{definition}[Interpreted Function]\\
+\inference{\Gamma,G_1|-G_2}{\Gamma|-G_1=> G_2}[$=>$]
+
+\begin{definition}[Implication]
+  
+\end{definition}
+
+\begin{minipage}{0.45\linewidth}
+ \inference{\Gamma|-G(t_1) & \ldots & \Gamma|-G(t_n)}{\Gamma |- \forall
+  x:\alpha \cdot G(x)}[$\forall$]
+\end{minipage}
+\begin{minipage}{0.45\linewidth}
+  \inference{\Gamma|-G(t_i)}{\Gamma |- \exists x:\alpha
+    \cdot G(x)}[$\exists_{i=1\ldots n}$]
+\end{minipage}
+
+where $\alpha=\{t_1,\ldots,t_n\}$.
+
+Resolute quantification is defined over finite sets $\alpha$. Thus,
+tests of universal and existential quantification statements
+generalize $\wedge$ and $\vee$ to arbitrarily many terms.
+
+\begin{definition}[Universal and Existential]\\
+  \comp{$\forall x:\alpha \cdot G(x)$}{L} = \comp{$t_1$}{L} $\mathsf{+\!<\!+}$
+  $\ldots$ $\mathsf{+\!<\!+}$\comp{$t_n$}{L} $->$ aprAnd \\
+  \comp{$\exists x:\alpha \cdot G(x)$}{L} = \comp{$t_1$}{L} $\mathsf{+\!<\!+}$
+  $\ldots$ $\mathsf{+\!<\!+}$\comp{$t_n$}{L} $->$ aprOr
+\end{definition}
+
+\inference{\Gamma|-G(\bar{t})}{\Gamma|-A(\bar{t})}[Backchain]
+
+where $\forall \bar{x}\cdot A(\bar{x})\in\Gamma$
+
+\begin{definition}[Backchain]
+
+\end{definition}
+
+\inference{e\Downarrow\bot}{\Gamma,\langle e\rangle|-G}[eval-L]
+\inference{e\Downarrow\top}{\Gamma|-\langle e\rangle}[eval-R]
+
+\begin{definition}[Eval]
+  
+\end{definition}
+
+\section{Computations}
+
+\begin{definition}[Uninterpreted Function]\\
 \comp{$f(p)$}{L} = ASP L(f) p
 \end{definition}
 
