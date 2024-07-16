@@ -1,0 +1,19 @@
+-R . CoplandM
+StructTactics.v
+Preamble.v
+ResultT.v
+Stringifiable.v
+Stringifiable_Class_Admits.v
+More_lists.v
+EqClass.v
+ID_Type.v
+Defs.v
+BS.v
+ErrorStringConstants.v
+Maps.v
+JSON_Type.v
+JSON_Admits.v
+JSON.v
+OptMonad_Coq.v
+Term_Defs_Core.v
+Resolute_Logic.v

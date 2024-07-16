@@ -277,3 +277,26 @@ TSWLatexianTemp*
 
 # Makeindex log files
 *.lpz
+
+#MacOS config
+.DS_Store
+
+#Coq config
+src/*.vo
+src/*.glob
+src/.coqdeps.d
+src/coq.mk
+src/coq.mk.conf
+src/*.vok
+src/*.vos
+src/.coq.mk.d
+src/.lia.cache
+src/*.aux
+src/html/*
+src/*.hs
+src/*.cml
+src/*.ml
+src/*.mli
+src/.vscode
+src/_CoqProject.local
+src/*~
