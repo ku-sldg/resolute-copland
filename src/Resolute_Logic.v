@@ -12,15 +12,25 @@ Inductive Formula : Type :=
   | Impl : Formula -> Formula -> Formula.
 *)
 
+(*
+Inductive FinTypeElems : Set := 
+| FinType1_Elems
+| FinType2_Elems.
+*)
+
+Definition FinSet : Set.  Admitted.
+
+Definition FinSetElements (T:FinSet) : Set.  Admitted.
+
 Inductive Resolute : Type :=
   | Rfalse
   | Rtrue
-  | Goal (n : nat)
+  | Goal (T : FinSet)
   | R_And (G1 : Resolute) (G2 : Resolute)
   | R_Or (G1 : Resolute) (G2 : Resolute)
   | R_Imp (G1 : Resolute) (G2 : Resolute)
-  | R_Forall (ns : list nat) (G : nat -> Resolute)
-  | R_Exists (ns : list nat) (G : nat -> Resolute).
+  | R_Forall (T: FinSet) (G : (FinSetElements T) -> Resolute)
+  | R_Exists (T : FinSet) (G : (FinSetElements T) -> Resolute).
 
 Definition Assumption := Resolute.
 Definition Assumptions := list (Assumption).
@@ -48,14 +58,23 @@ Inductive Reval : Assumptions -> Resolute -> Prop :=
     (Reval A G2) -> Reval A (R_Or G1 G2)
   | Reval_Imp : forall A G1 G2,
     Reval (G1::A) G2 -> Reval A (R_Imp G1 G2)
+  | Reval_Forall{T:FinSet} : forall (A:Assumptions) (pred: (FinSetElements T) -> Resolute),      
+      (forall (v:FinSetElements T), Reval A (pred v)) ->
+      Reval A (R_Forall T pred)
+  | Reval_Exists{T:FinSet} : forall (A:Assumptions) (pred: (FinSetElements T) -> Resolute),
+      (exists (v:FinSetElements T), Reval A (pred v)) -> 
+      Reval A (R_Exists T pred).
+    (*
   | Reval_Forall_nil : forall A G,
     Reval A (R_Forall nil G)
   | Reval_Forall : forall A n ns G,
     Reval A (G n) -> Reval A (R_Forall ns G) -> Reval A (R_Forall (n::ns) G)
+    
   | Reval_Exists_skip : forall A n ns G,
     Reval A (R_Exists ns G) -> Reval A (R_Exists (n::ns) G)
   | Reval_Exists : forall A n ns G,
     Reval A (G n) -> Reval A (R_Exists (n::ns) G).
+    *)
 
 Example test_RAnd :
   Reval ((R_And (Rfalse) (Rtrue))::nil) (R_And (Rfalse) (Rtrue)).
