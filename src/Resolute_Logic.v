@@ -18,9 +18,28 @@ Inductive FinTypeElems : Set :=
 | FinType2_Elems.
 *)
 
+
 Definition FinSet : Set.  Admitted.
+(*
+Inductive FinSet : Set :=
+| Threads
+| Memories.
+
+Inductive FixedThreadPool : Set := 
+| Thread1
+| Thread2
+| ThreadBob.
+*)
+
 
 Definition FinSetElements (T:FinSet) : Set.  Admitted.
+(*
+Definition FinSetElements (T:FinSet) : Set :=
+  match T with
+  | Threads => FixedThreadPool
+  | Memories => list nat
+  end.
+*)
 
 Inductive Resolute : Type :=
   | Rfalse
