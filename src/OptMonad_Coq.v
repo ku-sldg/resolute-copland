@@ -1,7 +1,7 @@
 (*
 General definition of an option monad + monadic notations.
 Borrowed/tweaked from:  
-https://github.com/uwplse/verdi/blob/master/core/StateMachineHandlerMonad.v
+https://github.com/uwplse/verdi/blob/master/theories/Core/StateMachineHandlerMonad.v
 
 Author:  Adam Petz, ampetz@ku.edu
 *)

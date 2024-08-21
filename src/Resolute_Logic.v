@@ -22,6 +22,7 @@ Definition Target_Map := MapC Target_Group Target_Pool.
 (* Explicit mapping from target IDs to the ASP IDs that measure those targets *)
 Definition Measures_Map := MapC Target_ID ASP_ID.
 
+(* Copland Term (or Copland phrase) -- Representation of Copland attestation protocols *)
 Inductive Term : Type := 
 | emptyTerm : Term
 | aspTerm : ASP_ID -> Term
@@ -72,6 +73,15 @@ Inductive Resolute : Type :=
   | R_Forall (T : Target_Group)  (G : Target_ID -> Resolute)
   | R_Exists (T : Target_Group) (G : Target_ID -> Resolute).
 
+Definition tg1 : Target_Group.
+Admitted.
+
+Definition tid1 : Target_ID.
+Admitted.
+
+Definition ex1 : Resolute :=
+  R_Forall tg1 (fun i => (R_And (R_Goal i) (R_Goal i))).
+
 Definition Assumption := Resolute.
 Definition Assumptions := list (Assumption).
 
@@ -94,10 +104,20 @@ Fixpoint res_to_copland (r:Resolute) (mm:Measures_Map) (tm:Target_Map) : Opt Ter
     t1 <- res_to_copland r1 mm tm ;;
     t2 <- res_to_copland r2 mm tm ;;
     ret (seqTerm t1 t2)
+    (* ret (seqTerm t1 (seqTerm (t2 t3))) *)
+    (*
+    where t3 = APPR (evalAll)
+    (e1, e2) --> t3 --> APPR (e1) && APPR (e2)
+    *)
   | R_Or r1 r2 => 
     t1 <- res_to_copland r1 mm tm ;;
     t2 <- res_to_copland r2 mm tm ;;
     ret (seqTerm t1 t2)
+    (* ret (seqTerm t1 (seqTerm (t2 t3))) *)
+    (*
+    where (t3 = APPR (evalOne))
+    (e1, e2) --> t3 --> APPR (e1) || APPR (e2)
+    *)
   | R_Imp r1 r2 => 
     res_to_copland r1 mm tm (* Is generating terms for antecedent enough here? *)
   | R_Forall tg pred => 
@@ -141,7 +161,7 @@ Inductive Reval : Assumptions -> Resolute -> Prop :=
 
 
 Theorem res_to_copland_sound : forall (a:Assumptions) (r:Resolute) mm tm, 
-  (exists t, 
+  (exists (t:Term), 
     (res_to_copland r mm tm = Some t) /\ 
   end_to_end_cert t = true) 
   <->
