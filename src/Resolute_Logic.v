@@ -22,7 +22,14 @@ Definition Target_Map := MapC Target_Group Target_Pool.
 (* Explicit mapping from target IDs to the ASP IDs that measure those targets *)
 Definition Measures_Map := MapC Target_ID ASP_ID.
 
-(* Copland Term (or Copland phrase) -- Representation of Copland attestation protocols *)
+(* Pair associating an action *)
+Definition Measurement_Action := pair ASP_ID Target_ID.
+
+(* Generic Measurement Type -- for now, just make it nat *)
+Definition Measurement := nat.
+
+(* Mapping between an action to measure a target with a given ASP and the outcome of measurement *)
+
 Inductive Term : Type := 
 | emptyTerm : Term
 | aspTerm : ASP_ID -> Term
@@ -57,7 +64,7 @@ Fixpoint appraise (e:Evidence) : AppEvidence :=
 
 (* This will probably need more parameters going forward...
    something like a "cert strategy"... *)
-Definition cert_policy (appE:AppEvidence) : bool.
+Fixpoint cert_policy (appE:AppEvidence) : bool.
 Admitted.
 
 Definition end_to_end_cert (t:Term) : bool :=
@@ -73,25 +80,93 @@ Inductive Resolute : Type :=
   | R_Forall (T : Target_Group)  (G : Target_ID -> Resolute)
   | R_Exists (T : Target_Group) (G : Target_ID -> Resolute).
 
-Definition tg1 : Target_Group.
-Admitted.
-
-Definition tid1 : Target_ID.
-Admitted.
-
-Definition ex1 : Resolute :=
-  R_Forall tg1 (fun i => (R_And (R_Goal i) (R_Goal i))).
-
 Definition Assumption := Resolute.
 Definition Assumptions := list (Assumption).
 
+
 (* Get all ASP_IDs of corresponding Target_IDs in Measures_Map *)
-Definition get_aspids (ls:list Target_ID) (mm:Measures_Map) : Opt (list ASP_ID).
+Fail Definition get_aspids (ls:list Target_ID) (mm:Measures_Map) : Opt (list ASP_ID) :=
+map (fun x => map_get mm x) ls.
+(* The measures map uses the option monad to return Some v or None,
+making a list of option ASP_IDs.
+What we need is a optional list of ASP_IDs.
+The monad is stuck on the wrong side.
+*)
+
+(* Get all ASP_IDs of corresponding Target_IDs in Measures_Map *)
+Fixpoint get_aspids' (ls:list Target_ID) (mm:Measures_Map) : Opt (list ASP_ID) :=
+match ls with
+| nil => None
+| targ::tail => asp <- map_get mm targ ;; asp_tail <- get_aspids' tail mm ;; ret (asp :: asp_tail)
+end.
+(* 1) Does this produce None for the whole list if a mapping fails once?
+      Or does it just exclude the Target that lacks a mapping to an ASP?
+   2) Would we even want to allow a list to be returned if a mapping from a Target ID
+      does not exist in the measures map?
+*)
+
+(* Sanity check:
+   If we get a mapping, and an arbitrary target is in the targets list,
+   and this target has a mapping to an ASP in the measures map,
+   then this ASP is in the list of ASPs returned by the mapping.
+*)
+Theorem get_aspids'_correct : forall (ls:list Target_ID) (mm:Measures_Map),
+  forall aspls : list ASP_ID,
+    forall (targ : Target_ID) (asp : ASP_ID),
+      get_aspids' ls mm = Some aspls /\ In targ ls /\ map_get mm targ = Some asp -> In asp aspls.
+intros. destruct H as [Hsome H0]. destruct H0 as [Hin Hmap]. induction ls.
+- simpl in Hin. discriminate.
+- apply IHls.
+  + inversion Hin; subst.
+    -- simpl in Hin. destruct Hin.
+      ++ admit.
+      ++ admit.
+    -- admit.
+  + inversion Hin; subst.
+    -- simpl in Hin. destruct Hin.
+      ++ admit. (* Hin is not helpful here... *)
+      ++ apply H.
+    -- apply H.
+Admitted.
+(* Getting stuck here on how to use the induction hypothesis to help.
+It splits into two goals with hypotheses (Hsome and Hin)
+that are worded in ways that don't seem useful.
+*)
+
+Definition Target_ID_eqb (t1 t2 : Target_ID) : bool :=
+  Nat.eqb t1 t2.
+
+Definition get_aspids (ls:list Target_ID) (mm:Measures_Map) : Opt (list ASP_ID) :=
+  match map (fun x => snd x) 
+    (filter (fun x => List.existsb (fun y => Target_ID_eqb (fst x) y) ls) mm) with
+  | nil => None
+  | ls => Some ls
+  end.
+
+Theorem get_aspids_correct : forall (ls:list Target_ID) (mm:Measures_Map),
+  forall aspls : list ASP_ID,
+    forall (targ : Target_ID) (asp : ASP_ID),
+      get_aspids ls mm = Some aspls /\ In targ ls /\ map_get mm targ = Some asp -> In asp aspls.
+intros. destruct H. destruct H0. induction ls.
+- simpl in H0. contradiction.
+- apply IHls.
+  + inversion H0; subst.
+    -- admit.
+    -- admit.
 Admitted.
 
 (* Construct a compound Term from a list of ASP_IDs *)
 Definition aspids_to_term (ls:list ASP_ID) : Term.
 Admitted.
+
+(* Treating the Term structure as list-like for now,
+since all ASP terms only take a single argument (their ASP ID) to their constructor.  
+*)
+Fixpoint aspids_to_term' (ls:list ASP_ID) : Term :=
+match ls with
+| nil => emptyTerm
+| asp::tail => seqTerm (aspTerm asp) (aspids_to_term' tail)
+end.
 
 Fixpoint res_to_copland (r:Resolute) (mm:Measures_Map) (tm:Target_Map) : Opt Term :=
   match r with 
@@ -159,14 +234,26 @@ Inductive Reval : Assumptions -> Resolute -> Prop :=
         Reval A (pred v)) ->
       Reval A (R_Exists gr pred).
 
+Theorem warmup : forall (a:Assumptions) (r:Resolute), 
+  Reval a r -> 
+  (forall (mm: Measures_Map) (tm:Target_Map) t,
+    (forall key targ, map_get tm key = Some targ -> 
+    cert_policy (appraise (measure (t))) = true) ->
+    res_to_copland r mm tm = Some t ->
+    end_to_end_cert t = true).
+Proof.
+Admitted.
 
 Theorem res_to_copland_sound : forall (a:Assumptions) (r:Resolute) mm tm, 
-  (exists (t:Term), 
+  (exists t, 
     (res_to_copland r mm tm = Some t) /\ 
   end_to_end_cert t = true) 
   <->
   Reval a r.
 Proof.
+intros. split; intros H.
+- admit.
+- admit.
 Admitted.
 
 
