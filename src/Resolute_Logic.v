@@ -134,9 +134,12 @@ Theorem res_to_copland_sound : forall (m:Model) (r:Resolute),
 Proof.
   intros. split; intros H.
   - induction r.
-    + intros. admit.
+    + intros. specialize H with (t := emptyTerm) (pol := fun x => False). 
+      simpl in H. destruct H. reflexivity.
     + intros. apply Reval_R.
-    + intros. admit.
+    + intros. specialize H with (t := conc m T).
+    simpl in H. specialize H with (pol := fun e => In e (spec m T)).
+    simpl in H. intros.
     + intros. apply Reval_And.
       -- apply IHr1. simpl in H. admit.
       -- admit.
