@@ -1,6 +1,6 @@
 (* Encoding of the RESOLUTE logic (and RESOLUTE to Copland translator) in coq *)
 
-Require Export String Maps OptMonad_Coq.
+Require Export String Maps.
 Require Export List.
 
 (* Generic ID Type -- for now, just make it nat *)
@@ -8,16 +8,9 @@ Definition ID_Type := nat.
 
 (* Target ID *)
 Definition Target_ID := ID_Type.
-(* Target Group ID -- some meaningful (but abstract) grouping of targets *)
-Definition Target_Group := ID_Type.
-(* A concrete set of targets *)
-Definition Target_Pool := list Target_ID.
 
 (* ASP (Attestation Service Provider) IDs *)
 Definition ASP_ID := ID_Type.
-
-(* Explicit mapping from target groups to pools *)
-Definition Target_Map := MapC Target_Group Target_Pool.
 
 (* Explicit mapping from target IDs to the ASP IDs that measure those targets *)
 Definition Measures_Map := MapC Target_ID ASP_ID.
@@ -70,64 +63,49 @@ Inductive Resolute : Type :=
   | R_And (G1 : Resolute) (G2 : Resolute)
   | R_Or (G1 : Resolute) (G2 : Resolute)
   | R_Imp (G1 : Resolute) (G2 : Resolute)
-  | R_Forall (T : Target_Group)  (G : Target_ID -> Resolute)
-  | R_Exists (T : Target_Group) (G : Target_ID -> Resolute).
-
-Definition tg1 : Target_Group.
-Admitted.
-
-Definition tid1 : Target_ID.
-Admitted.
-
-Definition ex1 : Resolute :=
-  R_Forall tg1 (fun i => (R_And (R_Goal i) (R_Goal i))).
+  | R_Forall (l : list Target_ID)  (G : Target_ID -> Resolute)
+  | R_Exists (l : list Target_ID) (G : Target_ID -> Resolute).
 
 Definition Assumption := Resolute.
 Definition Assumptions := list (Assumption).
 
-(* Get all ASP_IDs of corresponding Target_IDs in Measures_Map *)
-Definition get_aspids (ls:list Target_ID) (mm:Measures_Map) : Opt (list ASP_ID).
-Admitted.
+Record Model := {
+  conc : Target_ID -> Term ;
+  spec : Target_ID -> list Evidence
+}.
 
-(* Construct a compound Term from a list of ASP_IDs *)
-Definition aspids_to_term (ls:list ASP_ID) : Term.
-Admitted.
-
-Fixpoint res_to_copland (r:Resolute) (mm:Measures_Map) (tm:Target_Map) : Opt Term :=
+Fixpoint res_to_copland (M : Model) (r:Resolute) : Term * (Evidence -> Prop) :=
   match r with 
-  | R_False => failm 
-  | R_True => ret emptyTerm
-  | (R_Goal tid) => 
-      i <- (map_get mm tid) ;;
-      (ret (aspTerm i))
+  | R_False => (emptyTerm, fun e => False)
+
+  | R_True => (emptyTerm, fun e => True)
+
+  | (R_Goal tid) => (conc M tid, fun e => In e (spec M tid))
+
   | R_And r1 r2 => 
-    t1 <- res_to_copland r1 mm tm ;;
-    t2 <- res_to_copland r2 mm tm ;;
-    ret (seqTerm t1 t2)
-    (* ret (seqTerm t1 (seqTerm (t2 t3))) *)
-    (*
-    where t3 = APPR (evalAll)
-    (e1, e2) --> t3 --> APPR (e1) && APPR (e2)
-    *)
+    let '(t1, pol1) := res_to_copland M r1 in
+    let '(t2, pol2) := res_to_copland M r2 in
+    (seqTerm t1 t2, fun e => pol1 e /\ pol2 e)
+
   | R_Or r1 r2 => 
-    t1 <- res_to_copland r1 mm tm ;;
-    t2 <- res_to_copland r2 mm tm ;;
-    ret (seqTerm t1 t2)
-    (* ret (seqTerm t1 (seqTerm (t2 t3))) *)
-    (*
-    where (t3 = APPR (evalOne))
-    (e1, e2) --> t3 --> APPR (e1) || APPR (e2)
-    *)
+    let '(t1, pol1) := res_to_copland M r1 in
+    let '(t2, pol2) := res_to_copland M r2 in
+    (seqTerm t1 t2, fun e => pol1 e \/ pol2 e)
+
   | R_Imp r1 r2 => 
-    res_to_copland r1 mm tm (* Is generating terms for antecedent enough here? *)
-  | R_Forall tg pred => 
-    pool <- map_get tm tg ;;
-    asp_ids <- (get_aspids pool mm) ;;
-    ret (aspids_to_term asp_ids)
-  | R_Exists tg pred => 
-    pool <- map_get tm tg ;;
-    asp_ids <- (get_aspids pool mm) ;;
-    ret (aspids_to_term asp_ids)
+    let '(t1, pol1) := res_to_copland M r1 in
+    let '(t2, pol2) := res_to_copland M r2 in
+    (seqTerm t1 t2, fun e => pol1 e -> pol2 e)
+
+  | R_Forall l pred => 
+    (* forall x \in l, do pred l *)
+    let list_tpols := map (fun x => res_to_copland M (pred x)) l in
+    fold_left (fun x y => (seqTerm (fst x) (fst y), fun e => (snd x) e /\ (snd y) e)) list_tpols (emptyTerm, fun e => True)
+
+  | R_Exists l pred => 
+    (* exists x \in l, do pred l *)
+    let list_tpols := map (fun x => res_to_copland M (pred x)) l in
+    fold_left (fun x y => (seqTerm (fst x) (fst y), fun e => (snd x) e \/ (snd y) e)) list_tpols (emptyTerm, fun e => False)
   end.
  
 
