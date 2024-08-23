@@ -48,14 +48,6 @@ Fixpoint appraise (e:Evidence) : AppEvidence :=
   | seqE e1 e2 => app_seqE (appraise e1) (appraise e2)
   end.
 
-(* This will probably need more parameters going forward...
-   something like a "cert strategy"... *)
-Definition cert_policy (appE:AppEvidence) : bool.
-Admitted.
-
-Definition end_to_end_cert (t:Term) : bool :=
-  cert_policy (appraise (measure t)).
-
 Inductive Resolute : Type :=
   | R_False
   | R_True
@@ -71,10 +63,10 @@ Definition Assumptions := list (Assumption).
 
 Record Model := {
   conc : Target_ID -> Term ;
-  spec : Target_ID -> list Evidence
+  spec : Target_ID -> list AppEvidence
 }.
 
-Fixpoint res_to_copland (M : Model) (r:Resolute) : Term * (Evidence -> Prop) :=
+Fixpoint res_to_copland (M : Model) (r:Resolute) : Term * (AppEvidence -> Prop) :=
   match r with 
   | R_False => (emptyTerm, fun e => False)
 
@@ -122,31 +114,41 @@ Inductive Reval : Assumptions -> Resolute -> Prop :=
     (Reval A G2) -> Reval A (R_Or G1 G2)
   | Reval_Imp : forall A G1 G2,
     Reval (G1::A) G2 -> Reval A (R_Imp G1 G2)
-  | Reval_Forall : forall (A:Assumptions) (m:Target_Map) 
-    (gr:Target_Group) (tp:Target_Pool) (pred: Target_ID -> Resolute),      
+  | Reval_Forall : forall (A:Assumptions) 
+    (tp:list Target_ID) (pred: Target_ID -> Resolute),      
       (forall (v:Target_ID), 
-        map_get m gr = Some tp -> 
         In v tp -> 
         Reval A (pred v)) ->
-      Reval A (R_Forall gr pred)
-  | Reval_Exists : forall (A:Assumptions) (m:Target_Map) 
-    (gr:Target_Group) (tp:Target_Pool) (pred: Target_ID -> Resolute),      
+      Reval A (R_Forall tp pred)
+  | Reval_Exists : forall (A:Assumptions)
+    (tp:list Target_ID) (pred: Target_ID -> Resolute),      
       (exists (v:Target_ID), 
-        map_get m gr = Some tp -> 
         In v tp -> 
         Reval A (pred v)) ->
-      Reval A (R_Exists gr pred).
+      Reval A (R_Exists tp pred).
 
-
-Theorem res_to_copland_sound : forall (a:Assumptions) (r:Resolute) mm tm, 
-  (exists (t:Term), 
-    (res_to_copland r mm tm = Some t) /\ 
-  end_to_end_cert t = true) 
+Theorem res_to_copland_sound : forall (m:Model) (r:Resolute),
+  (forall t pol, res_to_copland m r=(t,pol) -> pol (appraise (measure t)))
   <->
-  Reval a r.
+  (forall a, Reval a r).
 Proof.
+  intros. split; intros H.
+  - induction r.
+    + intros. admit.
+    + intros. apply Reval_R.
+    + intros. admit.
+    + intros. apply Reval_And.
+      -- apply IHr1. simpl in H. admit.
+      -- admit.
+    + intros. apply Reval_Or_L. admit.
+    + intros. apply Reval_Imp. admit.
+    + intros. apply Reval_Forall. admit.
+    + intros. apply Reval_Exists. admit.
+  - induction t.
+    + intros. simpl. admit. (* Axiom for app_emptyE? *)
+    + intros. simpl. admit. 
+    + intros. simpl. admit. (* Recurse on pol *)
 Admitted.
-
 
 Example test_RAnd :
   Reval ((R_And (R_False) (R_True))::nil) (R_And (R_False) (R_True)).
