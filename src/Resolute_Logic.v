@@ -134,22 +134,44 @@ Theorem res_to_copland_sound : forall (m:Model) (r:Resolute),
 Proof.
   intros. split; intros H.
   - induction r.
+    (* R_False: solved *)
     + intros. specialize H with (t := emptyTerm) (pol := fun x => False). 
       simpl in H. destruct H. reflexivity.
-    + intros. apply Reval_R.
+    (* R_True: solved *)
+    + intros. apply Reval_R. 
+    (* R_Goal: in progress *)
+    (* I think this the most important section of the proof that is incomplete,
+    because I think the other cases require some similar logic. 
+    What is needed here is to be able to use the hypothesis
+    implies that an arbitrary goal can be evaluated in Reval.
+    It is not clear to me yet how to use the hypothesis in this way. 
+    *)
     + intros. specialize H with (t := conc m T).
     simpl in H. specialize H with (pol := fun e => In e (spec m T)).
-    simpl in H. intros.
+    simpl in H. intros. admit.
+    (* Reval_And: in progress *)
     + intros. apply Reval_And.
-      -- apply IHr1. simpl in H. admit.
+      -- apply IHr1. intros t pol. intros H1. apply H. destruct t.
       -- admit.
+    (* Reval_Or: in progress *)
     + intros. apply Reval_Or_L. admit.
+    (* Reval_Imp: in progress *)
     + intros. apply Reval_Imp. admit.
+    (* Reval_Forall: in progress *)
     + intros. apply Reval_Forall. admit.
+    (* Reval_Exists: in progress *)
     + intros. apply Reval_Exists. admit.
+    (* This part of the proof is much less developed. *)
   - induction t.
+    (* app_emptyE : in progress *)
     + intros. simpl. admit. (* Axiom for app_emptyE? *)
-    + intros. simpl. admit. 
+    (* Here I think we need a mirror to the problem for the RGoal T case,
+    that being that to prove that an arbitrary ASP complies with the policy
+    if Reval succeeds.
+    *)
+    (* app_aspE : in progress *)
+    + intros. simpl. admit.
+    (* app_seqE : in progress *) 
     + intros. simpl. admit. (* Recurse on pol *)
 Admitted.
 
