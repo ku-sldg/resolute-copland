@@ -3,6 +3,8 @@
 Require Export String Maps.
 Require Export List.
 
+Import ListNotations.
+
 (* Generic ID Type -- for now, just make it nat *)
 Definition ID_Type := nat.
 
@@ -106,11 +108,27 @@ Inductive Reval : Assumptions -> Resolute -> Prop :=
     In R_False A -> Reval (A) G
   | Reval_R : forall A,
     Reval A R_True
-  | Reval_And : forall A G1 G2,
+  (*
+    1. Is using In and appending the new assumption helpful?
+    2. Naming: "Left" (L) and "Right" (R) have been used in earlier versions
+    to refer to the left and right of a split.
+    I have changed them to match how SLC uses left and right to refer to
+    the left (antecedent) and right (consequent) sides of a sequent,
+    which is also how left and right are used on other sources such as Wikipedia.
+    https://slc.openlogicproject.org/slc-screen.pdf
+    How do we want to name these rules for best clarity?
+  *)
+  | Reval_And_L1 : forall a1 a2 A G,
+    (In a1 A) -> (Reval A G) -> (Reval ((R_And a1 a2)::A) G)
+  | Reval_And_L2 : forall a1 a2 A G,
+    (In a2 A) -> (Reval A G) -> (Reval ((R_And a1 a2)::A) G)
+  | Reval_And_R : forall A G1 G2,
     Reval A G1 -> Reval A G2 -> Reval A (R_And G1 G2)
-  | Reval_Or_L : forall A G1 G2,
+  | Reval_Or_L : forall a1 a2 A G,
+    (In a1 A) -> (In a2 A) -> (Reval A G) -> (Reval ((R_Or a1 a2)::A) G)
+  | Reval_Or_R1 : forall A G1 G2,
     (Reval A G1) -> Reval A (R_Or G1 G2)
-  | Reval_Or_R : forall A G1 G2,
+  | Reval_Or_R2 : forall A G1 G2,
     (Reval A G2) -> Reval A (R_Or G1 G2)
   | Reval_Imp : forall A G1 G2,
     Reval (G1::A) G2 -> Reval A (R_Imp G1 G2)
@@ -150,11 +168,11 @@ Proof.
     simpl in H. specialize H with (pol := fun e => In e (spec m T)).
     simpl in H. intros. admit.
     (* Reval_And: in progress *)
-    + intros. apply Reval_And.
-      -- apply IHr1. intros t pol. intros H1. apply H. destruct t.
+    + intros. apply Reval_And_R.
+      -- apply IHr1. intros t pol. intros H1. apply H. admit.
       -- admit.
     (* Reval_Or: in progress *)
-    + intros. apply Reval_Or_L. admit.
+    + intros. apply Reval_Or_R1. admit.
     (* Reval_Imp: in progress *)
     + intros. apply Reval_Imp. admit.
     (* Reval_Forall: in progress *)
@@ -178,7 +196,7 @@ Admitted.
 Example test_RAnd :
   Reval ((R_And (R_False) (R_True))::nil) (R_And (R_False) (R_True)).
 Proof.
-  apply Reval_And.
+  apply Reval_And_R.
   - apply Reval_L. unfold In. left. admit.
   - apply Reval_R.
 Admitted.
@@ -186,7 +204,7 @@ Admitted.
 Example test_ROr :
   Reval (nil) (R_Or (R_False) (R_True)).
 Proof.
-  apply Reval_Or_R. apply Reval_R.
+  apply Reval_Or_R2. apply Reval_R.
 Qed.
 
 Example test_RImp :
