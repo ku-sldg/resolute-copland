@@ -1,0 +1,23 @@
+\section{Introduction}
+
+\reservestyle{\command}{\textsf}
+\command{let,in,and,or}
+
+\begin{definition}[Compilation]\\
+  \comp{t}{L} defines compiling \textsf{RESOLUTE} term $t$ into a
+  \textsf{Copland} protocol in the context of AM library L.
+\end{definition}
+
+\begin{definition}[Strategy] \\
+  \comp{strategy $id$ "copland.\emph{L}" p}{} = \eval{p}{L}
+\end{definition}
+
+Specify the analysis strategy is using Copland with AM Library L to
+map interpreted RESOLUTE functions to their implementing ASPs.  The AM
+Library provides implementations for abstract analysis activities.
+
+
+%%% Local Variables: ***
+%%% mode:latex ***
+%%% TeX-master: "resolute-copland.tex"  ***
+%%% End: ***
