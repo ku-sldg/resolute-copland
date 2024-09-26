@@ -1,0 +1,78 @@
+\section{Resolute Semantics}
+
+\subsection{Claims and Rules}
+
+Inference rules taken from~\citet{gacek2014resolute}.
+
+\inference{\Gamma |- G_1 & \Gamma |- G_2}{\Gamma |- G_1 \wedge G_2}[$\wedge$]
+
+\inference{\Gamma |- G_i}{\Gamma |- G_1 \vee G_2}[$\vee_{i=1,2}$]
+
+\begin{definition}[Conjunction and Disjunction] \\
+  \comp{$t_1$ \<and> $t_2$}{L} = \comp{$t_1$}{L} $\mathsf{+\!<\!+}$
+  \comp{$t_2$}{L} $->$ aprAnd \\
+  \comp{$t_1$ \<or> $t_2$}{L} = \comp{$t_1$}{L} $\mathsf{+\!<\!+}$
+  \comp{$t_2$}{L} $->$ aprOr
+\end{definition}
+
+Compile the two binary operator terms using the same AM Library into a
+sequential Copland ordering.  Appraise the result to determine if the
+conjunction or disjunction holds.  Attestation gathers evidence,
+appraisal determines if it adheres to policy.
+
+\inference{\Gamma,G_1|-G_2}{\Gamma|-G_1=> G_2}[$=>$]
+
+\begin{definition}[Implication]
+  
+\end{definition}
+
+\begin{minipage}{0.45\linewidth}
+ \inference{\Gamma|-G(t_1) & \ldots & \Gamma|-G(t_n)}{\Gamma |- \forall
+  x:\alpha \cdot G(x)}[$\forall$]
+\end{minipage}
+\begin{minipage}{0.45\linewidth}
+  \inference{\Gamma|-G(t_i)}{\Gamma |- \exists x:\alpha
+    \cdot G(x)}[$\exists_{i=1\ldots n}$]
+\end{minipage}
+
+where $\alpha=\{t_1,\ldots,t_n\}$.
+
+Resolute quantification is defined over finite sets $\alpha$. Thus,
+tests of universal and existential quantification statements
+generalize $\wedge$ and $\vee$ to arbitrarily many terms.
+
+\begin{definition}[Universal and Existential]\\
+  \comp{$\forall x:\alpha \cdot G(x)$}{L} = \comp{$t_1$}{L} $\mathsf{+\!<\!+}$
+  $\ldots$ $\mathsf{+\!<\!+}$\comp{$t_n$}{L} $->$ aprAnd \\
+  \comp{$\exists x:\alpha \cdot G(x)$}{L} = \comp{$t_1$}{L} $\mathsf{+\!<\!+}$
+  $\ldots$ $\mathsf{+\!<\!+}$\comp{$t_n$}{L} $->$ aprOr
+\end{definition}
+
+\begin{definition}[Backchain]
+
+\end{definition}
+
+\inference{\Gamma|-G(\bar{t})}{\Gamma|-A(\bar{t})}[Backchain]
+
+where $\forall \bar{x}\cdot A(\bar{x})\in\Gamma$
+
+
+\begin{definition}[Eval]
+  
+\end{definition}
+
+\inference{e\Downarrow\bot}{\Gamma,\langle e\rangle|-G}[eval-L]
+\inference{e\Downarrow\top}{\Gamma|-\langle e\rangle}[eval-R]
+
+
+
+
+
+
+
+
+
+%%% Local Variables: ***
+%%% mode:latex ***
+%%% TeX-master: "resolute-copland.tex"  ***
+%%% End: ***
