@@ -53,7 +53,7 @@ Fixpoint appraise (e:Evidence) : AppEvidence :=
 Inductive Resolute : Type :=
   | R_False
   | R_True
-  | R_Goal (T : Target_ID)
+  | R_Goal (T : Target_ID) (F : Target_ID -> Resolute)
   | R_And (G1 : Resolute) (G2 : Resolute)
   | R_Or (G1 : Resolute) (G2 : Resolute)
   | R_Imp (G1 : Resolute) (G2 : Resolute)
@@ -74,7 +74,7 @@ Fixpoint res_to_copland (M : Model) (r:Resolute) : Term * (AppEvidence -> Prop) 
 
   | R_True => (emptyTerm, fun e => True)
 
-  | (R_Goal tid) => (conc M tid, fun e => In e (spec M tid))
+  | (R_Goal tid NONSENSE_PLACEHOLDER_VARIABLE_PLEASE_FIX) => (conc M tid, fun e => In e (spec M tid))
 
   | R_And r1 r2 => 
     let '(t1, pol1) := res_to_copland M r1 in
@@ -143,7 +143,61 @@ Inductive Reval : Assumptions -> Resolute -> Prop :=
       (exists (v:Target_ID), 
         In v tp -> 
         Reval A (pred v)) ->
-      Reval A (R_Exists tp pred).
+      Reval A (R_Exists tp pred)
+  | Reval_Goal : forall A T F,
+    (Reval A (F T)) -> (Reval A (R_Goal T F)).
+
+Definition targets := [1; 2; 3].
+
+Definition ex_forall := 
+R_Forall targets 
+(fun target => R_Goal target (fun target => R_True)).
+
+Definition processes := [1; 2; 3].
+Definition processors := [1; 2; 3].
+
+Definition is_more_than_zero (T: Target_ID) : Resolute :=
+  match T with
+  | O => R_False
+  | S x => R_True
+  end.
+
+Definition is_bound (T : Target_ID) : Resolute :=
+  match T with
+  | _ => R_True
+  end.
+
+(*
+		one_process() <=
+			** "The model must contain at least one process bound to a processor" **
+			let procs : {process} = {p for (p : process) | (exists(pr : processor) . is_bound_to(p, pr))};
+			size(procs) > 0
+*)
+
+Definition one_process := 
+R_And 
+(R_Forall processes 
+  (fun process => 
+    (R_Exists processors
+      (fun processor =>
+        R_Goal processor is_bound
+      )
+    )
+  )
+)
+(R_Goal (length processes) is_more_than_zero).
+
+Example test_one_process : Reval nil one_process.
+Proof.
+unfold one_process. apply Reval_And_R.
+- apply Reval_Forall. 
+  intros. apply Reval_Exists. 
+  exists 1. intros H1. unfold is_bound. apply Reval_Goal. 
+  apply Reval_R.
+- simpl. apply Reval_Goal. 
+  simpl. apply Reval_R.
+Qed. (* No admits needed! *)
+
 
 Theorem res_to_copland_sound : forall (m:Model) (r:Resolute),
   (forall t pol, res_to_copland m r=(t,pol) -> pol (appraise (measure t)))
