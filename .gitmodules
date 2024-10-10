@@ -1,4 +1,0 @@
-[submodule "bib"]
-	path = bib
-	url = git@github.com:ku-sldg/bib.git
-	branch = master
