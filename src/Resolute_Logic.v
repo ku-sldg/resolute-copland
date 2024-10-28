@@ -8,6 +8,9 @@ Import ListNotations.
 (* Generic ID Type -- for now, just make it nat *)
 Definition ID_Type := nat.
 
+(* Target Place *)
+Definition Target_Plc := ID_Type.
+
 (* Target ID *)
 Definition Target_ID := ID_Type.
 
@@ -16,6 +19,9 @@ Definition ASP_ID := ID_Type.
 
 (* Explicit mapping from target IDs to the ASP IDs that measure those targets *)
 Definition Measures_Map := MapC Target_ID ASP_ID.
+
+(* Generic ASP template -*)
+Definition ASP : Type := ASP_ID * Target_Plc * list Target_ID.
 
 (* Copland Term (or Copland phrase) -- Representation of Copland attestation protocols *)
 Inductive Term : Type := 
@@ -53,7 +59,8 @@ Fixpoint appraise (e:Evidence) : AppEvidence :=
 Inductive Resolute : Type :=
   | R_False
   | R_True
-  | R_Goal (l : list Target_ID) (F : list Target_ID -> Resolute)
+  | R_ASPEval (asp: ASP)
+  | R_Goal (l : list Target_ID) (asp: ASP)
   | R_And (G1 : Resolute) (G2 : Resolute)
   | R_Or (G1 : Resolute) (G2 : Resolute)
   | R_Imp (G1 : Resolute) (G2 : Resolute)
@@ -74,7 +81,9 @@ Fixpoint res_to_copland (M : Model) (r:Resolute) : Term * (AppEvidence -> Prop) 
 
   | R_True => (emptyTerm, fun e => True)
 
-  | (R_Goal tid fid) => (conc M tid, fun e => In e (spec M tid))
+  | R_ASPEval asp => (emptyTerm, fun e => True)
+
+  | (R_Goal tid asp) => (conc M tid, fun e => In e (spec M tid))
 
   | R_And r1 r2 => 
     let '(t1, pol1) := res_to_copland M r1 in
@@ -144,17 +153,19 @@ Inductive Reval : Assumptions -> Resolute -> Prop :=
         In v tp -> 
         Reval A (pred v)) ->
       Reval A (R_Exists tp pred)
-  | Reval_Goal : forall A T F,
-    (Reval A (F T)) -> (Reval A (R_Goal T F)).
+  | Reval_Goal : forall A T asp,
+    (Reval A (R_ASPEval asp)) -> (Reval A (R_Goal T asp))
+  | Reval_Assume_ASP_Succeeds: forall A asp,
+    (Reval A R_True) -> (Reval A (R_ASPEval asp)).
 
+(*
 Definition targets := [1; 2; 3].
 
 Definition ex_forall := 
 R_Forall targets 
 (fun target => R_Goal [target] (fun target => R_True)).
 
-Definition processes := [1; 2; 3].
-Definition processors := [1; 2; 3].
+
 
 Definition is_more_than_zero (l: list Target_ID) : Resolute :=
   match l with
@@ -169,12 +180,37 @@ Definition is_bound (l : list Target_ID) : Resolute :=
   | _ => R_False 
   end.
 
+*)
+
 (*
 		one_process() <=
 			** "The model must contain at least one process bound to a processor" **
 			let procs : {process} = {p for (p : process) | (exists(pr : processor) . is_bound_to(p, pr))};
 			size(procs) > 0
 *)
+
+Definition processes := [1; 2; 3].
+Definition processors := [1; 2; 3].
+
+Definition appraiser := 0.
+
+Definition is_bound_to := 0.
+Definition is_more_than_zero := 1.
+
+Definition one_process :=
+R_And
+(R_Forall processes
+  (fun process =>
+    (R_Exists processors
+      (fun processor =>
+          R_Goal nil (appraiser, is_bound_to, [process; processor])
+      )
+    )
+  )
+)
+(R_Goal nil (appraiser, is_more_than_zero, [length processes])).
+
+(*
 
 Definition one_process := 
 R_And 
@@ -188,6 +224,8 @@ R_And
   )
 )
 (R_Goal ([length processes]) is_more_than_zero).
+
+*)
  
 Definition test_model := {| 
   conc := fun _ => emptyTerm;
@@ -202,13 +240,13 @@ Proof.
 unfold one_process. apply Reval_And_R.
 - apply Reval_Forall. 
   intros. apply Reval_Exists. 
-  exists 1. intros H1. unfold is_bound. apply Reval_Goal. 
+  exists 1. intros H1. apply Reval_Goal. apply Reval_Assume_ASP_Succeeds. 
   apply Reval_R.
-- simpl. apply Reval_Goal. 
+- simpl. apply Reval_Goal. apply Reval_Assume_ASP_Succeeds.
   simpl. apply Reval_R.
 Qed. (* No admits needed! *)
 
-
+(*
 Theorem res_to_copland_sound : forall (m:Model) (r:Resolute),
   (forall t pol, res_to_copland m r=(t,pol) -> pol (appraise (measure t)))
   <->
@@ -256,6 +294,7 @@ Proof.
     (* app_seqE : in progress *) 
     + intros. simpl. admit. (* Recurse on pol *)
 Admitted.
+*)
 
 Example test_RAnd :
   Reval ((R_And (R_False) (R_True))::nil) (R_And (R_False) (R_True)).
