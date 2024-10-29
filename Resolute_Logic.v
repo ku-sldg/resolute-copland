@@ -18,7 +18,7 @@ Definition Target_ID := ID_Type.
 Definition ASP_ID := ID_Type.
 
 (* Explicit mapping from target IDs to the ASP IDs that measure those targets *)
-Definition Measures_Map := Map Target_ID ASP_ID.
+Definition Measures_Map := MapC Target_ID ASP_ID.
 
 (* Generic ASP template -*)
 Definition ASP : Type := ASP_ID * Target_Plc * list Target_ID.
