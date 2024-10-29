@@ -193,6 +193,7 @@ Definition processes := [1; 2; 3].
 Definition processors := [1; 2; 3].
 
 Definition appraiser := 0.
+Definition appraisee := 1.
 
 Definition is_bound_to := 0.
 Definition is_more_than_zero := 1.
@@ -203,12 +204,12 @@ R_And
   (fun process =>
     (R_Exists processors
       (fun processor =>
-          R_Goal nil (appraiser, is_bound_to, [process; processor])
+       	R_Goal [appraiser] (appraisee, is_bound_to, [process; processor])
       )
     )
   )
 )
-(R_Goal nil (appraiser, is_more_than_zero, [length processes])).
+(R_Goal [appraiser] (appraisee, is_more_than_zero, [length processes])).
 
 (*
 
