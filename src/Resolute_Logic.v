@@ -8,68 +8,13 @@ Require Import Term_Defs_Core.
 Import ListNotations.
 
 
-(*
-(* Generic ID Type -- for now, just make it nat *)
-Definition ID_Type := nat.
-
-(* Target Place *)
-Definition Target_Plc := ID_Type.
-
-(* Target ID *)
-Definition Target_ID := ID_Type.
-
-(* ASP (Attestation Service Provider) IDs *)
-Definition ASP_ID := ID_Type.
-
-(* Explicit mapping from target IDs to the ASP IDs that measure those targets *)
-Definition Measures_Map := Map Target_ID ASP_ID.
-
-(* Generic ASP template -*)
-Definition ASP : Type := ASP_ID * Target_Plc * list Target_ID.
-
-(* Copland Term (or Copland phrase) -- Representation of Copland attestation protocols *)
-Inductive Term : Type := 
-| emptyTerm : Term
-| aspTerm : ASP_ID -> Term
-| seqTerm : Term -> Term -> Term.
-
-Inductive Evidence : Type := 
-| emptyE : Evidence
-| aspE : ASP_ID -> Evidence
-| seqE : Evidence -> Evidence -> Evidence.
-
-Inductive AppEvidence : Type := 
-| app_emptyE : AppEvidence
-| app_aspE : ASP_ID -> AppEvidence 
-| app_seqE : AppEvidence -> AppEvidence -> AppEvidence.
-
-(* Abstract system measurement -- vastly simplified simulation 
-   of the Copland Virtual Machine (CVM) *)
-Fixpoint measure (t:Term) : Evidence := 
-  match t with 
-  | emptyTerm => emptyE
-  | aspTerm i => aspE i 
-  | seqTerm t1 t2 => seqE (measure t1) (measure t2)
-  end.
-
-(* Abstract appraisal procedure *)
-Fixpoint appraise (e:Evidence) : AppEvidence := 
-  match e with
-  | emptyE => app_emptyE
-  | aspE i => app_aspE i 
-  | seqE e1 e2 => app_seqE (appraise e1) (appraise e2)
-  end.
-
-  *)
-
 Definition TargetT : Set.
 Admitted.
 
 Inductive Resolute : Type :=
   | R_False
   | R_True
-  (* | R_ASPEval (asp: ASP) *)
-  | R_Goal (t:TargetT) (* (asp: ASP) *)
+  | R_Goal (t:TargetT)
   | R_And (G1 : Resolute) (G2 : Resolute)
   | R_Or (G1 : Resolute) (G2 : Resolute)
   | R_Imp (G1 : Resolute) (G2 : Resolute)
@@ -79,81 +24,82 @@ Inductive Resolute : Type :=
 Definition Assumption := Resolute.
 Definition Assumptions := list (Assumption).
 
-
 Record Model := {
   conc : TargetT -> Term ;
-  spec : TargetT -> (* list AppEvidence *)(Evidence -> bool)
+  spec : TargetT -> (Evidence -> bool)
 }.
 
-Record ResModel := {
-  sysState : TargetT -> Prop
-}.
+(* Extending Assumptions operation (Comma operator in Sequent Calculus).  
+   Leaving its implementation abstract for now... *)
+Definition Comma (ls:Assumptions) (ls':Assumptions) : Assumptions.
+Admitted.
 
-Inductive Reval : ResModel -> Assumptions -> Resolute -> Prop :=
-  | Reval_L : forall M A R,
-    In R_False A -> Reval M A R
-  | Reval_R : forall M A,
-    Reval M A R_True
+Inductive Reval : Assumptions -> Resolute -> Prop :=
+  | Reval_L : forall A R,
+    In R_False A -> Reval A R
 
-  | Reval_Goal : forall M A T,
-    (* (Reval A (R_ASPEval asp)) *) (sysState M) T -> (Reval M A (R_Goal T ))
-    (*
-  | Reval_Assume_ASP_Succeeds: forall A asp,
-    (Reval A R_True) -> (Reval A (R_ASPEval asp)).
-    *)
-  (*
-    1. Is using In and appending the new assumption helpful?
-    2. Naming: "Left" (L) and "Right" (R) have been used in earlier versions
-    to refer to the left and right of a split.
-    I have changed them to match how SLC uses left and right to refer to
-    the left (antecedent) and right (consequent) sides of a sequent,
-    which is also how left and right are used on other sources such as Wikipedia.
-    https://slc.openlogicproject.org/slc-screen.pdf
-    How do we want to name these rules for best clarity?
-  *)
-  (*
-  | Reval_And_L1 : forall a1 a2 A G,
-    (In a1 A) -> (Reval A G) -> (Reval ((R_And a1 a2)::A) G)
-  | Reval_And_L2 : forall a1 a2 A G,
-    (In a2 A) -> (Reval A G) -> (Reval ((R_And a1 a2)::A) G)
-    *)
-  | Reval_And_R : forall M A R1 R2,
-    Reval M A R1 -> Reval M A R2 -> Reval M A (R_And R1 R2)
-    (*
-  | Reval_Or_L : forall a1 a2 A G,
-    (In a1 A) -> (In a2 A) -> (Reval A G) -> (Reval ((R_Or a1 a2)::A) G)
-    *)
-  | Reval_Or_R1 : forall M A R1 R2,
-    (Reval M A R1) -> Reval M A (R_Or R1 R2)
-  | Reval_Or_R2 : forall M A R1 R2,
-    (Reval M A R2) -> Reval M A (R_Or R1 R2)
-    (*
-  | Reval_Or_R2 : forall A G1 G2,
-    (Reval A G2) -> Reval A (R_Or G1 G2)
-    *)
-  | Reval_Imp : forall M A R1 R2,
-    In R1 A -> 
-    Reval M A R2 -> Reval M A (R_Imp R1 R2)
-  | Reval_Forall : forall M (A:Assumptions) 
+  | Reval_R : forall A,
+    Reval A R_True
+
+  | Reval_ID : forall A R, 
+    Reval (Comma A [R]) R
+ 
+  | Reval_And_Intro : forall A R1 R2,
+    Reval A R1 -> Reval A R2 -> Reval A (R_And R1 R2)
+  
+  | Reval_And_Elim : forall A R1 R2 R3,  
+    Reval (Comma A [R1;R2]) R3 -> 
+    Reval (Comma A [(R_And R1 R2)]) R3
+
+  | Reval_Or_Intro_L : forall A R1 R2,
+    (Reval A R1) -> Reval A (R_Or R1 R2)
+
+  | Reval_Or_Intro_R : forall A R1 R2,
+    (Reval A R2) -> Reval A (R_Or R1 R2)
+
+  | Reval_Or_Elim : forall A R1 R2 R3, 
+    Reval (Comma A [R1]) R3 -> 
+    Reval (Comma A [R2]) R3 -> 
+    Reval (Comma A [R_Or R1 R2]) R3
+
+  | Reval_Imp_Intro : forall A R1 R2, 
+    Reval (Comma A [R1]) R2 -> 
+    Reval A (R_Imp R1 R2)
+
+  | Reval_Imp_Elim : forall A R1 R2 R3, 
+    Reval A R1 -> 
+    Reval (Comma A [R2]) R3 -> 
+    Reval (Comma A [R_Imp R1 R2]) R3
+
+  | Reval_Forall_Intro : forall (A:Assumptions) 
     (tp:list TargetT) (pred: TargetT -> Resolute),      
       (forall (v:TargetT), 
         In v tp -> 
-        Reval M A (pred v)) ->
-      Reval M A (R_Forall tp pred)
-  | Reval_Exists : forall M (A:Assumptions)
+        Reval A (pred v)) ->
+      
+      Reval A (R_Forall tp pred)
+
+  | Reval_Forall_Elim : forall (A:Assumptions) 
+      (tp:list TargetT) (pred: TargetT -> Resolute) R3,    
+        (forall (v:TargetT), 
+          In v tp -> 
+          Reval (Comma A [pred v]) R3) -> 
+
+        Reval (Comma A [(R_Forall tp pred)]) R3
+
+  | Reval_Exists_Intro : forall (A:Assumptions)
     (tp:list TargetT) (pred: TargetT -> Resolute),      
       (exists (v:TargetT), 
         In v tp -> 
-        Reval M A (pred v)) ->
-      Reval M A (R_Exists tp pred).
+        Reval A (pred v)) ->
+      Reval A (R_Exists tp pred)
 
-(*
-Inductive TermPlus : Type := 
-| copTerm : Term -> TermPlus
-| mtTerm : TermPlus.
-*)
-
-
+  | Reval_Exists_Elim : forall (A:Assumptions)
+    (tp:list TargetT) (pred: TargetT -> Resolute) R3,      
+      (exists (v:TargetT), 
+        In v tp -> 
+        Reval (Comma A [(pred v)]) R3) ->
+      Reval (Comma A [(R_Exists tp pred)]) R3.
 
 Open Scope string.
 
