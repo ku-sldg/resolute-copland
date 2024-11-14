@@ -3,8 +3,12 @@
 Require Export String Maps.
 Require Export List.
 
+Require Import Term_Defs_Core.
+
 Import ListNotations.
 
+
+(*
 (* Generic ID Type -- for now, just make it nat *)
 Definition ID_Type := nat.
 
@@ -56,67 +60,47 @@ Fixpoint appraise (e:Evidence) : AppEvidence :=
   | seqE e1 e2 => app_seqE (appraise e1) (appraise e2)
   end.
 
+  *)
+
+Definition TargetT : Set.
+Admitted.
+
 Inductive Resolute : Type :=
   | R_False
   | R_True
-  | R_ASPEval (asp: ASP)
-  | R_Goal (l : list Target_ID) (asp: ASP)
+  (* | R_ASPEval (asp: ASP) *)
+  | R_Goal (t:TargetT) (* (asp: ASP) *)
   | R_And (G1 : Resolute) (G2 : Resolute)
   | R_Or (G1 : Resolute) (G2 : Resolute)
   | R_Imp (G1 : Resolute) (G2 : Resolute)
-  | R_Forall (l : list Target_ID)  (G : Target_ID -> Resolute)
-  | R_Exists (l : list Target_ID) (G : Target_ID -> Resolute).
+  | R_Forall (ls:list TargetT)  (G : TargetT -> Resolute)
+  | R_Exists (ls:list TargetT) (G : TargetT -> Resolute).
 
 Definition Assumption := Resolute.
 Definition Assumptions := list (Assumption).
 
+
 Record Model := {
-  conc : list Target_ID -> Term ;
-  spec : list Target_ID -> list AppEvidence
+  conc : TargetT -> Term ;
+  spec : TargetT -> (* list AppEvidence *)(Evidence -> bool)
 }.
 
-Fixpoint res_to_copland (M : Model) (r:Resolute) : Term * (AppEvidence -> Prop) :=
-  match r with 
-  | R_False => (emptyTerm, fun e => False)
+Record ResModel := {
+  sysState : TargetT -> Prop
+}.
 
-  | R_True => (emptyTerm, fun e => True)
+Inductive Reval : ResModel -> Assumptions -> Resolute -> Prop :=
+  | Reval_L : forall M A R,
+    In R_False A -> Reval M A R
+  | Reval_R : forall M A,
+    Reval M A R_True
 
-  | R_ASPEval asp => (emptyTerm, fun e => True)
-
-  | (R_Goal tid asp) => (conc M tid, fun e => In e (spec M tid))
-
-  | R_And r1 r2 => 
-    let '(t1, pol1) := res_to_copland M r1 in
-    let '(t2, pol2) := res_to_copland M r2 in
-    (seqTerm t1 t2, fun e => pol1 e /\ pol2 e)
-
-  | R_Or r1 r2 => 
-    let '(t1, pol1) := res_to_copland M r1 in
-    let '(t2, pol2) := res_to_copland M r2 in
-    (seqTerm t1 t2, fun e => pol1 e \/ pol2 e)
-
-  | R_Imp r1 r2 => 
-    let '(t1, pol1) := res_to_copland M r1 in
-    let '(t2, pol2) := res_to_copland M r2 in
-    (seqTerm t1 t2, fun e => pol1 e -> pol2 e)
-
-  | R_Forall l pred => 
-    (* forall x \in l, do pred l *)
-    let list_tpols := map (fun x => res_to_copland M (pred x)) l in
-    fold_left (fun x y => (seqTerm (fst x) (fst y), fun e => (snd x) e /\ (snd y) e)) list_tpols (emptyTerm, fun e => True)
-
-  | R_Exists l pred => 
-    (* exists x \in l, do pred l *)
-    let list_tpols := map (fun x => res_to_copland M (pred x)) l in
-    fold_left (fun x y => (seqTerm (fst x) (fst y), fun e => (snd x) e \/ (snd y) e)) list_tpols (emptyTerm, fun e => False)
-  end.
- 
-
-Inductive Reval : Assumptions -> Resolute -> Prop :=
-  | Reval_L : forall A G,
-    In R_False A -> Reval (A) G
-  | Reval_R : forall A,
-    Reval A R_True
+  | Reval_Goal : forall M A T,
+    (* (Reval A (R_ASPEval asp)) *) (sysState M) T -> (Reval M A (R_Goal T ))
+    (*
+  | Reval_Assume_ASP_Succeeds: forall A asp,
+    (Reval A R_True) -> (Reval A (R_ASPEval asp)).
+    *)
   (*
     1. Is using In and appending the new assumption helpful?
     2. Naming: "Left" (L) and "Right" (R) have been used in earlier versions
@@ -127,36 +111,101 @@ Inductive Reval : Assumptions -> Resolute -> Prop :=
     https://slc.openlogicproject.org/slc-screen.pdf
     How do we want to name these rules for best clarity?
   *)
+  (*
   | Reval_And_L1 : forall a1 a2 A G,
     (In a1 A) -> (Reval A G) -> (Reval ((R_And a1 a2)::A) G)
   | Reval_And_L2 : forall a1 a2 A G,
     (In a2 A) -> (Reval A G) -> (Reval ((R_And a1 a2)::A) G)
-  | Reval_And_R : forall A G1 G2,
-    Reval A G1 -> Reval A G2 -> Reval A (R_And G1 G2)
+    *)
+  | Reval_And_R : forall M A R1 R2,
+    Reval M A R1 -> Reval M A R2 -> Reval M A (R_And R1 R2)
+    (*
   | Reval_Or_L : forall a1 a2 A G,
     (In a1 A) -> (In a2 A) -> (Reval A G) -> (Reval ((R_Or a1 a2)::A) G)
-  | Reval_Or_R1 : forall A G1 G2,
-    (Reval A G1) -> Reval A (R_Or G1 G2)
+    *)
+  | Reval_Or_R1 : forall M A R1 R2,
+    (Reval M A R1) -> Reval M A (R_Or R1 R2)
+  | Reval_Or_R2 : forall M A R1 R2,
+    (Reval M A R2) -> Reval M A (R_Or R1 R2)
+    (*
   | Reval_Or_R2 : forall A G1 G2,
     (Reval A G2) -> Reval A (R_Or G1 G2)
-  | Reval_Imp : forall A G1 G2,
-    Reval (G1::A) G2 -> Reval A (R_Imp G1 G2)
-  | Reval_Forall : forall (A:Assumptions) 
-    (tp:list Target_ID) (pred: Target_ID -> Resolute),      
-      (forall (v:Target_ID), 
+    *)
+  | Reval_Imp : forall M A R1 R2,
+    In R1 A -> 
+    Reval M A R2 -> Reval M A (R_Imp R1 R2)
+  | Reval_Forall : forall M (A:Assumptions) 
+    (tp:list TargetT) (pred: TargetT -> Resolute),      
+      (forall (v:TargetT), 
         In v tp -> 
-        Reval A (pred v)) ->
-      Reval A (R_Forall tp pred)
-  | Reval_Exists : forall (A:Assumptions)
-    (tp:list Target_ID) (pred: Target_ID -> Resolute),      
-      (exists (v:Target_ID), 
+        Reval M A (pred v)) ->
+      Reval M A (R_Forall tp pred)
+  | Reval_Exists : forall M (A:Assumptions)
+    (tp:list TargetT) (pred: TargetT -> Resolute),      
+      (exists (v:TargetT), 
         In v tp -> 
-        Reval A (pred v)) ->
-      Reval A (R_Exists tp pred)
-  | Reval_Goal : forall A T asp,
-    (Reval A (R_ASPEval asp)) -> (Reval A (R_Goal T asp))
-  | Reval_Assume_ASP_Succeeds: forall A asp,
-    (Reval A R_True) -> (Reval A (R_ASPEval asp)).
+        Reval M A (pred v)) ->
+      Reval M A (R_Exists tp pred).
+
+(*
+Inductive TermPlus : Type := 
+| copTerm : Term -> TermPlus
+| mtTerm : TermPlus.
+*)
+
+
+
+Open Scope string.
+
+Definition mt_ASP_ID : ASP_ID := "mtTerm".
+Definition mt_Plc : Plc := "mtPlc".
+Definition mt_TARG_ID : Plc := "mtTarg".
+
+Close Scope string.
+
+Definition mtTerm : Term := 
+  asp (ASPC (asp_paramsC mt_ASP_ID [] mt_Plc mt_TARG_ID)).
+
+
+
+Fixpoint res_to_copland (M : Model) (r:Resolute) : Term * (Evidence -> bool) :=
+  match r with 
+  | R_False => (mtTerm, fun e => false)
+
+  | R_True => (mtTerm, fun e => true)
+
+  (* | R_ASPEval asp => (emptyTerm, fun e => True) *)
+
+  | (R_Goal tid) => (conc M tid, fun e => (spec M tid e))
+
+  | R_And r1 r2 => 
+    let '(t1, pol1) := res_to_copland M r1 in
+    let '(t2, pol2) := res_to_copland M r2 in
+    ((bseq (NONE,NONE) t1 t2), fun e => andb (pol1 e) (pol2 e))
+
+  | R_Or r1 r2 => 
+    let '(t1, pol1) := res_to_copland M r1 in
+    let '(t2, pol2) := res_to_copland M r2 in
+    (bseq (NONE,NONE) t1 t2, fun e => orb (pol1 e) (pol2 e))
+
+  | R_Imp r1 r2 => 
+    let '(t1, pol1) := res_to_copland M r1 in (* TODO:  should we check assumptions/prior evidence cache here? *)
+    let '(t2, pol2) := res_to_copland M r2 in
+    (bseq (NONE,NONE) t1 t2, fun e => (*pol1 e -> *) pol1 e)
+
+  | R_Forall l pred => 
+    (* forall x \in l, do pred l *)
+    let list_tpols := map (fun x => res_to_copland M (pred x)) l in
+    fold_left (fun x y => (bseq (NONE,NONE) (fst x) (fst y), fun e => andb ((snd x) e) ((snd y) e))) list_tpols (mtTerm, fun e => true)
+
+  | R_Exists l pred => 
+    (* exists x \in l, do pred l *)
+    let list_tpols := map (fun x => res_to_copland M (pred x)) l in
+    fold_left (fun x y => (bseq (NONE,NONE) (fst x) (fst y), fun e => andb ((snd x) e) ((snd y) e))) list_tpols (mtTerm, fun e => false)
+  end.
+
+
+
 
 (*
 Definition targets := [1; 2; 3].
