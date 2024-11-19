@@ -121,17 +121,48 @@ Record Model := {
 Global Instance EqClass_TargetT : EqClass TargetT.
 Admitted.
 
-Fixpoint res_to_copland (M : Model) (r:Resolute) (m:Map TargetT Evidence) : Term * (Evidence -> bool) :=
+(*
+Inductive Evidence :=
+| evc: RawEv -> EvidenceT -> Evidence.
+*)
+
+
+Definition split_t1 (e:Evidence) : (* option *) Evidence.  (* :=
+  match e with 
+  | evc rawEv et => 
+    match et with 
+    | split_evt et1 et2 => 
+      let n := et_size et1 in 
+      rawEv1 <- peel_n rawEv n ;;
+      ret (evc rawEv1 et1)
+    | _ => None
+    end 
+  end.
+*)
+Admitted.
+
+Definition split_t2 (e:Evidence) : Evidence.
+Admitted.
+
+Fixpoint res_to_copland (M : Model) (r:Resolute) (m:Map TargetT Evidence) 
+  : Term * (Evidence -> bool) :=
   match r with 
   | R_False => (mtTerm, fun _ => false)
   | R_True =>  (mtTerm, fun _ => true)
 
-  | (R_Goal tid) => (conc M tid, fun e => (spec M tid e))
+  | (R_Goal tid) => 
+     match (map_get tid m) with 
+     | None => (conc M tid, fun e => (spec M tid e))
+     | Some e => (mtTerm, fun _ => (spec M tid e))
+     end
 
   | R_And r1 r2 => 
     let '(t1, pol1) := res_to_copland M r1 m in
     let '(t2, pol2) := res_to_copland M r2 m in
-    ((bseq (NONE,NONE) t1 t2), fun e => andb (pol1 e) (pol2 e))
+    ((bseq (NONE,NONE) t1 t2), fun e => 
+      andb (pol1 (split_t1 e)) (pol2 (split_t2 e)))
+    
+    (* andb (pol1 e) (pol2 e)) *)
 
   | R_Or r1 r2 => 
     let '(t1, pol1) := res_to_copland M r1 m in
@@ -141,8 +172,8 @@ Fixpoint res_to_copland (M : Model) (r:Resolute) (m:Map TargetT Evidence) : Term
   | R_Imp r1 r2 => 
     (* TODO:  should we check assumptions/prior evidence cache here? *)
     let '(t1, pol1) := res_to_copland M r1 m in 
-    let '(t2, pol2) := res_to_copland M r2 m in
-    (bseq (NONE,NONE) t1 t2, fun e => (*pol1 e -> *) pol1 e)
+    (* let '(t2, pol2) := res_to_copland M r2 m in *)
+    (t1(* bseq (NONE,NONE) t1 t2 *), fun e => (*pol1 e -> *) pol1 e)
     end.
 
     (*
