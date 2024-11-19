@@ -1,6 +1,6 @@
 (* Encoding of the RESOLUTE logic (and RESOLUTE to Copland translator) in coq *)
 
-Require Export String Maps.
+Require Export String Maps EqClass.
 Require Export List.
 
 Require Import Term_Defs_Core.
@@ -17,17 +17,14 @@ Inductive Resolute : Type :=
   | R_Goal (t:TargetT)
   | R_And (G1 : Resolute) (G2 : Resolute)
   | R_Or (G1 : Resolute) (G2 : Resolute)
-  | R_Imp (G1 : Resolute) (G2 : Resolute)
+  | R_Imp (G1 : Resolute) (G2 : Resolute).
+  (*
   | R_Forall (ls:list TargetT)  (G : TargetT -> Resolute)
   | R_Exists (ls:list TargetT) (G : TargetT -> Resolute).
+  *)
 
 Definition Assumption := Resolute.
 Definition Assumptions := list (Assumption).
-
-Record Model := {
-  conc : TargetT -> Term ;
-  spec : TargetT -> (Evidence -> bool)
-}.
 
 (* Extending Assumptions operation (Comma operator in Sequent Calculus).  
    Leaving its implementation abstract for now... *)
@@ -69,8 +66,9 @@ Inductive Reval : Assumptions -> Resolute -> Prop :=
   | Reval_Imp_Elim : forall A R1 R2 R3, 
     Reval A R1 -> 
     Reval (Comma A [R2]) R3 -> 
-    Reval (Comma A [R_Imp R1 R2]) R3
+    Reval (Comma A [R_Imp R1 R2]) R3.
 
+    (*
   | Reval_Forall_Intro : forall (A:Assumptions) 
     (tp:list TargetT) (pred: TargetT -> Resolute),      
       (forall (v:TargetT), 
@@ -101,6 +99,8 @@ Inductive Reval : Assumptions -> Resolute -> Prop :=
         Reval (Comma A [(pred v)]) R3) ->
       Reval (Comma A [(R_Exists tp pred)]) R3.
 
+    *)
+
 Open Scope string.
 
 Definition mt_ASP_ID : ASP_ID := "mtTerm".
@@ -113,31 +113,39 @@ Definition mtTerm : Term :=
   asp (ASPC (asp_paramsC mt_ASP_ID [] mt_Plc mt_TARG_ID)).
 
 
+Record Model := {
+  conc : TargetT -> Term ;
+  spec : TargetT -> (Evidence -> bool)
+}.
 
-Fixpoint res_to_copland (M : Model) (r:Resolute) : Term * (Evidence -> bool) :=
+Global Instance EqClass_TargetT : EqClass TargetT.
+Admitted.
+
+Fixpoint res_to_copland (M : Model) (r:Resolute) (m:Map TargetT Evidence) : Term * (Evidence -> bool) :=
   match r with 
-  | R_False => (mtTerm, fun e => false)
-
-  | R_True => (mtTerm, fun e => true)
-
-  (* | R_ASPEval asp => (emptyTerm, fun e => True) *)
+  | R_False => (mtTerm, fun _ => false)
+  | R_True =>  (mtTerm, fun _ => true)
 
   | (R_Goal tid) => (conc M tid, fun e => (spec M tid e))
 
   | R_And r1 r2 => 
-    let '(t1, pol1) := res_to_copland M r1 in
-    let '(t2, pol2) := res_to_copland M r2 in
+    let '(t1, pol1) := res_to_copland M r1 m in
+    let '(t2, pol2) := res_to_copland M r2 m in
     ((bseq (NONE,NONE) t1 t2), fun e => andb (pol1 e) (pol2 e))
 
   | R_Or r1 r2 => 
-    let '(t1, pol1) := res_to_copland M r1 in
-    let '(t2, pol2) := res_to_copland M r2 in
+    let '(t1, pol1) := res_to_copland M r1 m in
+    let '(t2, pol2) := res_to_copland M r2 m in
     (bseq (NONE,NONE) t1 t2, fun e => orb (pol1 e) (pol2 e))
 
   | R_Imp r1 r2 => 
-    let '(t1, pol1) := res_to_copland M r1 in (* TODO:  should we check assumptions/prior evidence cache here? *)
-    let '(t2, pol2) := res_to_copland M r2 in
+    (* TODO:  should we check assumptions/prior evidence cache here? *)
+    let '(t1, pol1) := res_to_copland M r1 m in 
+    let '(t2, pol2) := res_to_copland M r2 m in
     (bseq (NONE,NONE) t1 t2, fun e => (*pol1 e -> *) pol1 e)
+    end.
+
+    (*
 
   | R_Forall l pred => 
     (* forall x \in l, do pred l *)
@@ -149,6 +157,7 @@ Fixpoint res_to_copland (M : Model) (r:Resolute) : Term * (Evidence -> bool) :=
     let list_tpols := map (fun x => res_to_copland M (pred x)) l in
     fold_left (fun x y => (bseq (NONE,NONE) (fst x) (fst y), fun e => andb ((snd x) e) ((snd y) e))) list_tpols (mtTerm, fun e => false)
   end.
+  *)
 
 
 
