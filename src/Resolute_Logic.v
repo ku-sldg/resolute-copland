@@ -176,6 +176,16 @@ Fixpoint res_to_copland (M : Model) (r:Resolute) (m:Map TargetT Evidence)
     (t1(* bseq (NONE,NONE) t1 t2 *), fun e => (*pol1 e -> *) pol1 e)
     end.
 
+ 
+Definition test_model := {| 
+  conc := fun _ => mtTerm;
+  spec := fun _ => (fun _ => true)
+|}.
+
+(* ====================================== *)
+(* ASSORTED LEFTOVER CODE AND TESTS BELOW *)
+(* ====================================== *)
+
     (*
 
   | R_Forall l pred => 
@@ -224,6 +234,7 @@ Definition is_bound (l : list Target_ID) : Resolute :=
 			size(procs) > 0
 *)
 
+(*
 Definition processes := [1; 2; 3].
 Definition processors := [1; 2; 3].
 
@@ -245,6 +256,8 @@ R_And
 )
 (R_Goal nil (appraiser, is_more_than_zero, [length processes])).
 
+*)
+
 (*
 
 Definition one_process := 
@@ -261,11 +274,8 @@ R_And
 (R_Goal ([length processes]) is_more_than_zero).
 
 *)
- 
-Definition test_model := {| 
-  conc := fun _ => emptyTerm;
-  spec := fun _ => nil
-|}.
+
+(*
 Definition copland_one_process := res_to_copland test_model one_process.
 
 Compute copland_one_process.
@@ -280,6 +290,7 @@ unfold one_process. apply Reval_And_R.
 - simpl. apply Reval_Goal. apply Reval_Assume_ASP_Succeeds.
   simpl. apply Reval_R.
 Qed. (* No admits needed! *)
+*)
 
 (*
 Theorem res_to_copland_sound : forall (m:Model) (r:Resolute),
@@ -331,6 +342,7 @@ Proof.
 Admitted.
 *)
 
+(*
 Example test_RAnd :
   Reval ((R_And (R_False) (R_True))::nil) (R_And (R_False) (R_True)).
 Proof.
@@ -352,7 +364,7 @@ Proof.
 Qed.
 
 
-
+*)
 (*
 Example test_RForall :
   Reval (nil) (R_Forall (5 :: (2 :: (3 :: nil))) (R_Goal)).
