@@ -8,8 +8,8 @@ Require Import Term_Defs_Core.
 Import ListNotations.
 
 
-Definition TargetT : Set.
-Admitted.
+Definition TargetT : Set := nat.
+(* Choosing a placeholder definition until a better definition can be made. *)
 
 Inductive Resolute : Type :=
   | R_False
@@ -181,6 +181,149 @@ Definition test_model := {|
   conc := fun _ => mtTerm;
   spec := fun _ => (fun _ => true)
 |}.
+
+(*
+	annex resolute {**
+			
+		goal Data_Wellformed(comp_context : component, property_id : string, filter : component, conn : connection, message_type : data) <=
+			** "The Consumer shall only receive well-formed messages" **
+			strategy S1 : "Model-based decomposition";
+			filter_added(comp_context, filter, conn, message_type)
+		
+		-- Top-level claim for proper insertion of a filter
+		goal filter_added(comp_context : component, filter : component, conn : connection, msg_type : data) <=
+			** "Filter " filter " is properly added to component " comp_context **
+			strategy S3 : "Reason over architecture";
+			filter_exists(filter, comp_context, conn) and filter_not_bypassed(filter, comp_context, msg_type) and filter_implemented(filter)
+	
+		-- Check to see if there is a filter immediately before the component on the communication pathway.
+		goal filter_exists(filter : component, comp_context : component, conn : connection) <=
+			** filter " is connected to component " comp_context " by connection " conn **
+			let conns : {connection} = {c for (c : connections(comp_context)) | destination_component(c) = comp_context and source_component(c) = filter};
+			is_filter(filter) and exists(c : conns) . c = conn
+			
+		-- Make sure there is no communication pathway that avoids the filter
+		goal filter_not_bypassed(filter : component, comp_context : component, msg_type : data) <=
+			** "Filter " filter " cannot be bypassed" **
+			let filter_srcs : {component} = get_filter_sources(comp_context, filter, msg_type); 
+			let non_filter_srcs : {component} = get_non_filter_sources(comp_context, filter, msg_type); 
+			length(intersect(filter_srcs, non_filter_srcs)) = 0
+			
+		-- This provides evidence that the filter was correctly generated for the appropriate OS
+	   goal  filter_implemented(filter : component) <=
+		    ** "Filter property implemented" **
+			implementation_language_assurance(filter)
+		   
+		-- Checks if the specified component is a filter
+		is_filter(c : component) : bool =
+			has_property(c, Filter_Properties::Component_Type) and property(c, Filter_Properties::Component_Type) = "FILTER"
+			
+		get_non_filter_sources(target : component, filter : component, msg_type : data) : {component} = 
+			let srcs : {component} = {c for (conn : connections (target)) (c : source_component(conn)) | has_type(conn) and type(conn) = msg_type and not (name(source_component(conn)) = name (filter))}; 
+			recursive_backwards_reach(srcs)
+		
+		get_filter_sources(target : component, filter : component, msg_type : data) : {component} = 
+			let srcs : {component} = {c for (conn : connections(target)) (c : source_component(conn)) | has_type(conn) and type(conn) = msg_type and name(source_component(conn)) = name(filter)};
+			prev_reach(srcs)
+		
+		recursive_backwards_reach(curr : {component}) : {component} = 
+			let prev : {component} = union(curr, prev_reach(curr)); 
+			if prev = curr then 
+				curr
+			else 
+				recursive_backwards_reach(prev)
+		
+		prev_reach(curr : {component}) : {component} = 
+			{y for (x : curr) (y : backwards_reachable_components(x))}
+		
+		backwards_reachable_components(comp : component) : {component} = 
+			{c for (conn : connections (comp)) (c : backwards_reachable_components_via_connection(comp, conn))}
+		
+		backwards_reachable_components_via_connection(comp : component, conn : connection) : {component} = 
+			if is_port_connection(conn) then 
+				if destination_component(conn) = comp then 
+					{source_component(conn)} 
+				else 
+					{} 
+			else 
+				{}
+				
+		implementation_language_assurance(comp : component) <=
+			** comp " implementation is appropriate for OS" **
+			is_seL4_component(comp) => (has_property(comp, Filter_Properties::Component_Implementation) and property(comp, Filter_Properties::Component_Implementation) = "CakeML")
+			
+		-- checks that a component will run on seL4 by checking that the processors it is bound to have the seL4 OS property
+		is_seL4_component(comp : component) : bool =
+			let proc : {component} = {c for (c : component) | (is_processor(c) or is_virtual_processor(c)) and is_bound_to(comp, c)};
+			(size(proc) > 0) and forall (p : proc) . (has_property(p, Filter_Properties::OS) and property(p, Filter_Properties::OS) = "seL4")
+	
+	**};
+*)
+
+(*
+		goal filter_added(comp_context : component, filter : component, conn : connection, msg_type : data) <=
+			** "Filter " filter " is properly added to component " comp_context **
+			strategy S3 : "Reason over architecture";
+			filter_exists(filter, comp_context, conn) and filter_not_bypassed(filter, comp_context, msg_type) and filter_implemented(filter)
+*)
+
+Definition and_template : Resolute := R_And (R_Goal 0) (R_Goal 0).
+Definition imp_template : Resolute := R_Imp (R_Goal 0) (R_Goal 0).
+
+Notation "x R& y" := (R_And x y)
+                     (at level 100, right associativity).
+
+Notation "x ; y" := (R_And x y)
+                     (at level 100, right associativity).
+
+Notation "x R=> y" := (R_Imp x y)
+                     (at level 100, right associativity).
+
+Notation "y R( x )" := (R_Imp x y)
+                     (at level 100, right associativity).
+
+Notation "y Args( x )" := (R_Imp x y)
+                     (at level 100, right associativity).
+
+Notation "G( x )" := (R_Goal x)
+                     (at level 100, right associativity).
+
+
+
+Definition foo := G(0).
+
+Definition and_temp2 : Resolute := foo R& foo.
+Definition imp_temp2 : Resolute := foo R=> foo.                               
+
+Definition filter_exists := G(0).
+Definition filter_not_bypassed := G(1).
+Definition filter_implemented := G(2).
+Definition filter := G(3).
+Definition comp_context := G(4).
+Definition conn := G(5).
+Definition msg_type := G(6).
+
+(*
+Definition ex1_filter_added : Resolute :=
+  R_And (R_Goal filter_exists) (R_And (R_Goal filter_not_bypassed) (R_Goal filter_implemented)).
+
+Definition ex2_filter_added : Resolute :=
+  R_And 
+  (R_Imp (R_And (R_Goal filter) (R_And (R_Goal comp_context) (R_Goal conn))) (R_Goal filter_exists))
+   (R_And 
+   (R_Imp (R_And (R_Goal filter) (R_And (R_Goal comp_context) (R_Goal msg_type))) (R_Goal filter_not_bypassed)) 
+   (R_Imp (R_Goal filter) (R_Goal filter_implemented))).
+*)
+
+
+Definition ex3_filter_added : Resolute :=
+(filter_exists Args(filter; comp_context; conn)) 
+R& (filter_not_bypassed Args(filter; comp_context; msg_type)) 
+R& (filter_implemented Args(filter)).
+
+Definition copland_filter_added := res_to_copland test_model ex3_filter_added.
+
+Compute copland_filter_added.
 
 (* ====================================== *)
 (* ASSORTED LEFTOVER CODE AND TESTS BELOW *)
