@@ -271,22 +271,19 @@ Definition and_template : Resolute := R_And (R_Goal 0) (R_Goal 0).
 Definition imp_template : Resolute := R_Imp (R_Goal 0) (R_Goal 0).
 
 Notation "x R& y" := (R_And x y)
-                     (at level 100, right associativity).
+                     (at level 20, right associativity).
 
 Notation "x ; y" := (R_And x y)
-                     (at level 100, right associativity).
+                     (at level 20, right associativity).
 
 Notation "x R=> y" := (R_Imp x y)
-                     (at level 100, right associativity).
+                     (at level 20, right associativity).
 
-Notation "y R( x )" := (R_Imp x y)
-                     (at level 100, right associativity).
-
-Notation "y Args( x )" := (R_Imp x y)
-                     (at level 100, right associativity).
+Notation "y <=R( x )" := (R_Imp x y)
+                     (at level 20, right associativity).
 
 Notation "G( x )" := (R_Goal x)
-                     (at level 100, right associativity).
+                     (at level 20, right associativity).
 
 
 
@@ -298,10 +295,10 @@ Definition imp_temp2 : Resolute := foo R=> foo.
 Definition filter_exists := G(0).
 Definition filter_not_bypassed := G(1).
 Definition filter_implemented := G(2).
-Definition filter := G(3).
-Definition comp_context := G(4).
-Definition conn := G(5).
-Definition msg_type := G(6).
+Definition filter := R_True.
+Definition comp_context := R_True.
+Definition conn := R_True.
+Definition msg_type := R_True.
 
 (*
 Definition ex1_filter_added : Resolute :=
@@ -316,14 +313,23 @@ Definition ex2_filter_added : Resolute :=
 *)
 
 
-Definition ex3_filter_added : Resolute :=
-(filter_exists Args(filter; comp_context; conn)) 
-R& (filter_not_bypassed Args(filter; comp_context; msg_type)) 
-R& (filter_implemented Args(filter)).
+Definition filter_added : Resolute :=
+(filter_exists <=R(filter; comp_context; conn)) 
+R& (filter_not_bypassed <=R(filter; comp_context; msg_type)) 
+R& (filter_implemented <=R(filter)).
 
-Definition copland_filter_added := res_to_copland test_model ex3_filter_added.
+Definition copland_filter_added := res_to_copland test_model filter_added.
 
 Compute copland_filter_added.
+
+Example test_filter_added : Reval [] filter_added.
+Proof.
+intros. unfold filter_added. apply Reval_And_Intro.
+- apply Reval_Imp_Intro. admit.
+- apply Reval_And_Intro.
+  + apply Reval_Imp_Intro. admit.
+  + apply Reval_Imp_Intro. admit.
+Admitted.
 
 (* ====================================== *)
 (* ASSORTED LEFTOVER CODE AND TESTS BELOW *)
