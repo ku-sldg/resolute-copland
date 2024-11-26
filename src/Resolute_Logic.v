@@ -325,10 +325,16 @@ Compute copland_filter_added.
 Example test_filter_added : Reval [] filter_added.
 Proof.
 intros. unfold filter_added. apply Reval_And_Intro.
-- apply Reval_Imp_Intro. admit.
+- apply Reval_Imp_Intro.
+  unfold filter. unfold comp_context. unfold conn.
+  admit.
 - apply Reval_And_Intro.
-  + apply Reval_Imp_Intro. admit.
-  + apply Reval_Imp_Intro. admit.
+  + apply Reval_Imp_Intro.
+  unfold filter. unfold comp_context. unfold msg_type.
+  admit.
+  + apply Reval_Imp_Intro.
+  unfold filter. 
+  admit.
 Admitted.
 
 (* ====================================== *)
