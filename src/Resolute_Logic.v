@@ -7,21 +7,23 @@ Require Import Term_Defs_Core.
 
 Import ListNotations.
 
+Definition Arg : Set := nat.
 
-Definition TargetT : Set.
-Admitted.
+Definition TargetT : Set := nat.
+(* Choosing a placeholder definition until a better definition can be made. *)
 
 Inductive Resolute : Type :=
   | R_False
   | R_True
-  | R_Goal (t:TargetT)
+  | R_Goal (t : TargetT) (l: list Arg)
   | R_And (G1 : Resolute) (G2 : Resolute)
   | R_Or (G1 : Resolute) (G2 : Resolute)
-  | R_Imp (G1 : Resolute) (G2 : Resolute).
+  | R_Imp (G1 : Resolute) (G2 : Resolute)
   (*
   | R_Forall (ls:list TargetT)  (G : TargetT -> Resolute)
   | R_Exists (ls:list TargetT) (G : TargetT -> Resolute).
   *)
+.
 
 Definition Assumption := Resolute.
 Definition Assumptions := list (Assumption).
@@ -30,6 +32,12 @@ Definition Assumptions := list (Assumption).
    Leaving its implementation abstract for now... *)
 Definition Comma (ls:Assumptions) (ls':Assumptions) : Assumptions.
 Admitted.
+
+Fixpoint All_In {T : Type} (ls1: list T) (ls2 : list T) : Prop :=
+match ls1 with
+| h::t => (In h ls2) /\ (All_In t ls2)
+| nil => True
+end.
 
 Inductive Reval : Assumptions -> Resolute -> Prop :=
   | Reval_L : forall A R,
@@ -40,6 +48,21 @@ Inductive Reval : Assumptions -> Resolute -> Prop :=
 
   | Reval_ID : forall A R, 
     Reval (Comma A [R]) R
+
+  | Reval_ID_List : forall A R, 
+    In R A -> Reval A R
+
+  | Reval_ID_Simple : forall R, 
+    Reval [R] R
+
+  | Reval_Weaken_Assumptions : forall A B R,
+  Reval B R -> Reval (A::B) R
+
+  | Reval_Reverse_Assumptions : forall A R,
+  Reval (rev A) R -> Reval A R
+
+  | Reval_Take_One_Assumption : forall A B R,
+  Reval [A] R -> Reval (A::B) R
  
   | Reval_And_Intro : forall A R1 R2,
     Reval A R1 -> Reval A R2 -> Reval A (R_And R1 R2)
@@ -150,7 +173,7 @@ Fixpoint res_to_copland (M : Model) (r:Resolute) (m:Map TargetT Evidence)
   | R_False => (mtTerm, fun _ => false)
   | R_True =>  (mtTerm, fun _ => true)
 
-  | (R_Goal tid) => 
+  | (R_Goal tid args) => 
      match (map_get tid m) with 
      | None => (conc M tid, fun e => (spec M tid e))
      | Some e => (mtTerm, fun _ => (spec M tid e))
@@ -175,6 +198,198 @@ Fixpoint res_to_copland (M : Model) (r:Resolute) (m:Map TargetT Evidence)
     (* let '(t2, pol2) := res_to_copland M r2 m in *)
     (t1(* bseq (NONE,NONE) t1 t2 *), fun e => (*pol1 e -> *) pol1 e)
     end.
+
+ 
+Definition test_model := {| 
+  conc := fun _ => mtTerm;
+  spec := fun _ => (fun _ => true)
+|}.
+
+(*
+	annex resolute {**
+			
+		goal Data_Wellformed(comp_context : component, property_id : string, filter : component, conn : connection, message_type : data) <=
+			** "The Consumer shall only receive well-formed messages" **
+			strategy S1 : "Model-based decomposition";
+			filter_added(comp_context, filter, conn, message_type)
+		
+		-- Top-level claim for proper insertion of a filter
+		goal filter_added(comp_context : component, filter : component, conn : connection, msg_type : data) <=
+			** "Filter " filter " is properly added to component " comp_context **
+			strategy S3 : "Reason over architecture";
+			filter_exists(filter, comp_context, conn) and filter_not_bypassed(filter, comp_context, msg_type) and filter_implemented(filter)
+	
+		-- Check to see if there is a filter immediately before the component on the communication pathway.
+		goal filter_exists(filter : component, comp_context : component, conn : connection) <=
+			** filter " is connected to component " comp_context " by connection " conn **
+			let conns : {connection} = {c for (c : connections(comp_context)) | destination_component(c) = comp_context and source_component(c) = filter};
+			is_filter(filter) and exists(c : conns) . c = conn
+			
+		-- Make sure there is no communication pathway that avoids the filter
+		goal filter_not_bypassed(filter : component, comp_context : component, msg_type : data) <=
+			** "Filter " filter " cannot be bypassed" **
+			let filter_srcs : {component} = get_filter_sources(comp_context, filter, msg_type); 
+			let non_filter_srcs : {component} = get_non_filter_sources(comp_context, filter, msg_type); 
+			length(intersect(filter_srcs, non_filter_srcs)) = 0
+			
+		-- This provides evidence that the filter was correctly generated for the appropriate OS
+	   goal  filter_implemented(filter : component) <=
+		    ** "Filter property implemented" **
+			implementation_language_assurance(filter)
+		   
+		-- Checks if the specified component is a filter
+		is_filter(c : component) : bool =
+			has_property(c, Filter_Properties::Component_Type) and property(c, Filter_Properties::Component_Type) = "FILTER"
+			
+		get_non_filter_sources(target : component, filter : component, msg_type : data) : {component} = 
+			let srcs : {component} = {c for (conn : connections (target)) (c : source_component(conn)) | has_type(conn) and type(conn) = msg_type and not (name(source_component(conn)) = name (filter))}; 
+			recursive_backwards_reach(srcs)
+		
+		get_filter_sources(target : component, filter : component, msg_type : data) : {component} = 
+			let srcs : {component} = {c for (conn : connections(target)) (c : source_component(conn)) | has_type(conn) and type(conn) = msg_type and name(source_component(conn)) = name(filter)};
+			prev_reach(srcs)
+		
+		recursive_backwards_reach(curr : {component}) : {component} = 
+			let prev : {component} = union(curr, prev_reach(curr)); 
+			if prev = curr then 
+				curr
+			else 
+				recursive_backwards_reach(prev)
+		
+		prev_reach(curr : {component}) : {component} = 
+			{y for (x : curr) (y : backwards_reachable_components(x))}
+		
+		backwards_reachable_components(comp : component) : {component} = 
+			{c for (conn : connections (comp)) (c : backwards_reachable_components_via_connection(comp, conn))}
+		
+		backwards_reachable_components_via_connection(comp : component, conn : connection) : {component} = 
+			if is_port_connection(conn) then 
+				if destination_component(conn) = comp then 
+					{source_component(conn)} 
+				else 
+					{} 
+			else 
+				{}
+				
+		implementation_language_assurance(comp : component) <=
+			** comp " implementation is appropriate for OS" **
+			is_seL4_component(comp) => (has_property(comp, Filter_Properties::Component_Implementation) and property(comp, Filter_Properties::Component_Implementation) = "CakeML")
+			
+		-- checks that a component will run on seL4 by checking that the processors it is bound to have the seL4 OS property
+		is_seL4_component(comp : component) : bool =
+			let proc : {component} = {c for (c : component) | (is_processor(c) or is_virtual_processor(c)) and is_bound_to(comp, c)};
+			(size(proc) > 0) and forall (p : proc) . (has_property(p, Filter_Properties::OS) and property(p, Filter_Properties::OS) = "seL4")
+	
+	**};
+*)
+
+(*
+		goal filter_added(comp_context : component, filter : component, conn : connection, msg_type : data) <=
+			** "Filter " filter " is properly added to component " comp_context **
+			strategy S3 : "Reason over architecture";
+			filter_exists(filter, comp_context, conn) and filter_not_bypassed(filter, comp_context, msg_type) and filter_implemented(filter)
+*)
+
+Definition and_template : Resolute := R_And (R_Goal 0 []) (R_Goal 0 []).
+Definition imp_template : Resolute := R_Imp (R_Goal 0 []) (R_Goal 0 []).
+
+Notation "x R& y" := (R_And x y)
+                     (at level 20, right associativity).
+
+Notation "x R=> y" := (R_Imp x y)
+                     (at level 20, right associativity).
+
+Definition foo := R_Goal (0) [].
+
+Definition and_temp2 : Resolute := foo R& foo.
+Definition imp_temp2 : Resolute := foo R=> foo.                               
+
+Definition filter : Arg := 0.
+Definition comp_context : Arg := 1.
+Definition conn : Arg := 2.
+Definition msg_type : Arg := 3.
+Definition filter_exists : TargetT := 0.
+Definition filter_not_bypassed : TargetT := 1.
+Definition filter_implemented : TargetT := 2.
+
+(*
+Definition ex1_filter_added : Resolute :=
+  R_And (R_Goal filter_exists) (R_And (R_Goal filter_not_bypassed) (R_Goal filter_implemented)).
+
+Definition ex2_filter_added : Resolute :=
+  R_And 
+  (R_Imp (R_And (R_Goal filter) (R_And (R_Goal comp_context) (R_Goal conn))) (R_Goal filter_exists))
+   (R_And 
+   (R_Imp (R_And (R_Goal filter) (R_And (R_Goal comp_context) (R_Goal msg_type))) (R_Goal filter_not_bypassed)) 
+   (R_Imp (R_Goal filter) (R_Goal filter_implemented))).
+*)
+
+Definition bar : list Arg := [filter; comp_context; conn].
+
+Definition filter_added : Resolute :=
+(R_Goal (filter_exists) ([filter; comp_context; conn])) 
+R& (R_Goal (filter_not_bypassed) ([filter; comp_context; msg_type])) 
+R& (R_Goal (filter_implemented) ([filter])).
+
+Definition copland_filter_added := res_to_copland test_model filter_added.
+
+Compute copland_filter_added.
+
+Example test_filter_added :
+(
+Reval [] (R_Goal (filter_exists) ([filter; comp_context; conn]))
+) ->
+(
+Reval [] (R_Goal (filter_not_bypassed) ([filter; comp_context; msg_type]))
+) ->
+(
+Reval [] (R_Goal (filter_implemented) ([filter]))
+) -> 
+Reval [] filter_added.
+Proof.
+intros. unfold filter_added. apply Reval_And_Intro.
+- apply H.
+- apply Reval_And_Intro.
+  + apply H0.
+  + apply H1.
+Qed.
+
+Example test_filter_added2 :
+Reval 
+[
+  (R_Goal (filter_exists) ([filter; comp_context; conn]));
+  (R_Goal (filter_not_bypassed) ([filter; comp_context; msg_type]));
+  (R_Goal (filter_implemented) ([filter]))
+] 
+filter_added.
+Proof.
+intros. unfold filter_added. apply Reval_And_Intro.
+- apply Reval_Take_One_Assumption. apply Reval_ID_Simple.
+- apply Reval_Weaken_Assumptions. apply Reval_And_Intro.
+  + apply Reval_Take_One_Assumption. apply Reval_ID_Simple. 
+  + apply Reval_Weaken_Assumptions.
+    apply Reval_Take_One_Assumption. apply Reval_ID_Simple.
+Qed.
+
+Example test_filter_added3 :
+Reval 
+[
+  (R_Goal (filter_exists) ([filter; comp_context; conn]));
+  (R_Goal (filter_not_bypassed) ([filter; comp_context; msg_type]));
+  (R_Goal (filter_implemented) ([filter]))
+] 
+filter_added.
+Proof.
+intros. unfold filter_added. apply Reval_And_Intro.
+- apply Reval_ID_List. simpl. auto.
+- apply Reval_And_Intro.
+  + apply Reval_ID_List. simpl. auto.
+  + apply Reval_ID_List. simpl. auto.
+Qed.
+
+(* ====================================== *)
+(* ASSORTED LEFTOVER CODE AND TESTS BELOW *)
+(* ====================================== *)
 
     (*
 
@@ -224,6 +439,7 @@ Definition is_bound (l : list Target_ID) : Resolute :=
 			size(procs) > 0
 *)
 
+(*
 Definition processes := [1; 2; 3].
 Definition processors := [1; 2; 3].
 
@@ -245,6 +461,8 @@ R_And
 )
 (R_Goal nil (appraiser, is_more_than_zero, [length processes])).
 
+*)
+
 (*
 
 Definition one_process := 
@@ -261,11 +479,8 @@ R_And
 (R_Goal ([length processes]) is_more_than_zero).
 
 *)
- 
-Definition test_model := {| 
-  conc := fun _ => emptyTerm;
-  spec := fun _ => nil
-|}.
+
+(*
 Definition copland_one_process := res_to_copland test_model one_process.
 
 Compute copland_one_process.
@@ -280,6 +495,7 @@ unfold one_process. apply Reval_And_R.
 - simpl. apply Reval_Goal. apply Reval_Assume_ASP_Succeeds.
   simpl. apply Reval_R.
 Qed. (* No admits needed! *)
+*)
 
 (*
 Theorem res_to_copland_sound : forall (m:Model) (r:Resolute),
@@ -331,6 +547,7 @@ Proof.
 Admitted.
 *)
 
+(*
 Example test_RAnd :
   Reval ((R_And (R_False) (R_True))::nil) (R_And (R_False) (R_True)).
 Proof.
@@ -352,7 +569,7 @@ Proof.
 Qed.
 
 
-
+*)
 (*
 Example test_RForall :
   Reval (nil) (R_Forall (5 :: (2 :: (3 :: nil))) (R_Goal)).
