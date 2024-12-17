@@ -11,6 +11,8 @@ Definition Arg : Set := nat.
 
 Definition TargetT : Set := nat.
 (* Choosing a placeholder definition until a better definition can be made. *)
+Definition TargetT : Set := nat.
+(* Choosing a placeholder definition until a better definition can be made. *)
 
 Inductive Resolute : Type :=
   | R_False
@@ -440,6 +442,7 @@ Definition is_bound (l : list Target_ID) : Resolute :=
 *)
 
 (*
+(*
 Definition processes := [1; 2; 3].
 Definition processors := [1; 2; 3].
 
@@ -463,6 +466,8 @@ R_And
 
 *)
 
+*)
+
 (*
 
 Definition one_process := 
@@ -481,6 +486,8 @@ R_And
 *)
 
 (*
+
+(*
 Definition copland_one_process := res_to_copland test_model one_process.
 
 Compute copland_one_process.
@@ -495,6 +502,7 @@ unfold one_process. apply Reval_And_R.
 - simpl. apply Reval_Goal. apply Reval_Assume_ASP_Succeeds.
   simpl. apply Reval_R.
 Qed. (* No admits needed! *)
+*)
 *)
 
 (*
@@ -548,6 +556,7 @@ Admitted.
 *)
 
 (*
+(*
 Example test_RAnd :
   Reval ((R_And (R_False) (R_True))::nil) (R_And (R_False) (R_True)).
 Proof.
@@ -569,6 +578,7 @@ Proof.
 Qed.
 
 
+*)
 *)
 (*
 Example test_RForall :
