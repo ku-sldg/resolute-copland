@@ -214,18 +214,20 @@ Definition test_model := {|
 			** "The Consumer shall only receive well-formed messages" **
 			strategy S1 : "Model-based decomposition";
 			filter_added(comp_context, filter, conn, message_type)
+      NOTE: WHAT ARE STRATEGIES?
 		
 		-- Top-level claim for proper insertion of a filter
 		goal filter_added(comp_context : component, filter : component, conn : connection, msg_type : data) <=
 			** "Filter " filter " is properly added to component " comp_context **
 			strategy S3 : "Reason over architecture";
-			filter_exists(filter, comp_context, conn) and filter_not_bypassed(filter, comp_context, msg_type) and filter_implemented(filter)
-	
+			filter_exists(filter, comp_context, conn) and filter_not_bypassed(filter, comp_context, msg_type) and filter_implemented(filter)	
+
 		-- Check to see if there is a filter immediately before the component on the communication pathway.
 		goal filter_exists(filter : component, comp_context : component, conn : connection) <=
 			** filter " is connected to component " comp_context " by connection " conn **
 			let conns : {connection} = {c for (c : connections(comp_context)) | destination_component(c) = comp_context and source_component(c) = filter};
 			is_filter(filter) and exists(c : conns) . c = conn
+      NOTE: THIS CONTAINS LET STATEMENTS AND EXISTS
 			
 		-- Make sure there is no communication pathway that avoids the filter
 		goal filter_not_bypassed(filter : component, comp_context : component, msg_type : data) <=
@@ -233,6 +235,7 @@ Definition test_model := {|
 			let filter_srcs : {component} = get_filter_sources(comp_context, filter, msg_type); 
 			let non_filter_srcs : {component} = get_non_filter_sources(comp_context, filter, msg_type); 
 			length(intersect(filter_srcs, non_filter_srcs)) = 0
+      NOTE: THIS CONTAINS LET STATEMENTS
 			
 		-- This provides evidence that the filter was correctly generated for the appropriate OS
 	   goal  filter_implemented(filter : component) <=
@@ -246,10 +249,12 @@ Definition test_model := {|
 		get_non_filter_sources(target : component, filter : component, msg_type : data) : {component} = 
 			let srcs : {component} = {c for (conn : connections (target)) (c : source_component(conn)) | has_type(conn) and type(conn) = msg_type and not (name(source_component(conn)) = name (filter))}; 
 			recursive_backwards_reach(srcs)
+      NOTE: THIS CONTAINS LET STATEMENTS
 		
 		get_filter_sources(target : component, filter : component, msg_type : data) : {component} = 
 			let srcs : {component} = {c for (conn : connections(target)) (c : source_component(conn)) | has_type(conn) and type(conn) = msg_type and name(source_component(conn)) = name(filter)};
 			prev_reach(srcs)
+      NOTE: THIS CONTAINS LET STATEMENTS
 		
 		recursive_backwards_reach(curr : {component}) : {component} = 
 			let prev : {component} = union(curr, prev_reach(curr)); 
@@ -257,13 +262,16 @@ Definition test_model := {|
 				curr
 			else 
 				recursive_backwards_reach(prev)
+      NOTE: THIS CONTAINS LET STATEMENTS AND A CONDITIONAL?
 		
 		prev_reach(curr : {component}) : {component} = 
 			{y for (x : curr) (y : backwards_reachable_components(x))}
+    NOTE: THIS CONTAINS A FORALL, OR WHAT ELSE IS THE FOR SYNTAX?
 		
 		backwards_reachable_components(comp : component) : {component} = 
 			{c for (conn : connections (comp)) (c : backwards_reachable_components_via_connection(comp, conn))}
-		
+		NOTE: THIS CONTAINS A FORALL, OR WHAT ELSE IS THE FOR SYNTAX?
+
 		backwards_reachable_components_via_connection(comp : component, conn : connection) : {component} = 
 			if is_port_connection(conn) then 
 				if destination_component(conn) = comp then 
@@ -272,6 +280,7 @@ Definition test_model := {|
 					{} 
 			else 
 				{}
+    NOTE: THIS CONTAINS A CONDITIONAL
 				
 		implementation_language_assurance(comp : component) <=
 			** comp " implementation is appropriate for OS" **
@@ -281,6 +290,7 @@ Definition test_model := {|
 		is_seL4_component(comp : component) : bool =
 			let proc : {component} = {c for (c : component) | (is_processor(c) or is_virtual_processor(c)) and is_bound_to(comp, c)};
 			(size(proc) > 0) and forall (p : proc) . (has_property(p, Filter_Properties::OS) and property(p, Filter_Properties::OS) = "seL4")
+  NOTE: THIS CONTAINS A FORALL STATEMENT
 	
 	**};
 *)
