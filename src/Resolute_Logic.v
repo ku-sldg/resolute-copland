@@ -11,8 +11,6 @@ Definition Arg : Set := nat.
 
 Definition TargetT : Set := nat.
 (* Choosing a placeholder definition until a better definition can be made. *)
-Definition TargetT : Set := nat.
-(* Choosing a placeholder definition until a better definition can be made. *)
 
 Inductive Resolute : Type :=
   | R_False
@@ -35,63 +33,66 @@ Definition Assumptions := list (Assumption).
 Definition Comma (ls:Assumptions) (ls':Assumptions) : Assumptions.
 Admitted.
 
-Fixpoint All_In {T : Type} (ls1: list T) (ls2 : list T) : Prop :=
-match ls1 with
-| h::t => (In h ls2) /\ (All_In t ls2)
-| nil => True
-end.
+Definition External : Type := Resolute -> bool.
 
-Inductive Reval : Assumptions -> Resolute -> Prop :=
-  | Reval_L : forall A R,
-    In R_False A -> Reval A R
 
-  | Reval_R : forall A,
-    Reval A R_True
+Inductive Reval : External -> Assumptions -> Resolute -> Prop :=
+  | Reval_L : forall E A R,
+    In R_False A -> Reval E A R
 
-  | Reval_ID : forall A R, 
-    Reval (Comma A [R]) R
+  | Reval_R : forall E A,
+    Reval E A R_True
 
-  | Reval_ID_List : forall A R, 
-    In R A -> Reval A R
+  | Reval_External_True : forall (E:External) A (R:Resolute),
+    E R = true -> Reval E A R_True -> Reval E A R
 
-  | Reval_ID_Simple : forall R, 
-    Reval [R] R
+  | Reval_External_False : forall (E:External) A (R:Resolute),
+    E R = false -> Reval E A R_True -> Reval E A R
 
-  | Reval_Weaken_Assumptions : forall A B R,
-  Reval B R -> Reval (A::B) R
+  | Reval_ID : forall E A R, 
+    Reval E (Comma A [R]) R
 
-  | Reval_Reverse_Assumptions : forall A R,
-  Reval (rev A) R -> Reval A R
+  | Reval_ID_List : forall E A R, 
+    In R A -> Reval E A R
 
-  | Reval_Take_One_Assumption : forall A B R,
-  Reval [A] R -> Reval (A::B) R
+  | Reval_ID_Simple : forall E R, 
+    Reval E [R] R
+
+  | Reval_Weaken_Assumptions : forall E A B R,
+  Reval E B R -> Reval E (A::B) R
+
+  | Reval_Reverse_Assumptions : forall E A R,
+  Reval E (rev A) R -> Reval E A R
+
+  | Reval_Take_One_Assumption : forall E A B R,
+  Reval E [A] R -> Reval E (A::B) R
  
-  | Reval_And_Intro : forall A R1 R2,
-    Reval A R1 -> Reval A R2 -> Reval A (R_And R1 R2)
+  | Reval_And_Intro : forall E A R1 R2,
+    Reval E A R1 -> Reval E A R2 -> Reval E A (R_And R1 R2)
   
-  | Reval_And_Elim : forall A R1 R2 R3,  
-    Reval (Comma A [R1;R2]) R3 -> 
-    Reval (Comma A [(R_And R1 R2)]) R3
+  | Reval_And_Elim : forall E A R1 R2 R3,  
+    Reval E (Comma A [R1;R2]) R3 -> 
+    Reval E (Comma A [(R_And R1 R2)]) R3
 
-  | Reval_Or_Intro_L : forall A R1 R2,
-    (Reval A R1) -> Reval A (R_Or R1 R2)
+  | Reval_Or_Intro_L : forall E A R1 R2,
+    (Reval E A R1) -> Reval E A (R_Or R1 R2)
 
-  | Reval_Or_Intro_R : forall A R1 R2,
-    (Reval A R2) -> Reval A (R_Or R1 R2)
+  | Reval_Or_Intro_R : forall E A R1 R2,
+    (Reval E A R2) -> Reval E A (R_Or R1 R2)
 
-  | Reval_Or_Elim : forall A R1 R2 R3, 
-    Reval (Comma A [R1]) R3 -> 
-    Reval (Comma A [R2]) R3 -> 
-    Reval (Comma A [R_Or R1 R2]) R3
+  | Reval_Or_Elim : forall E A R1 R2 R3, 
+    Reval E (Comma A [R1]) R3 -> 
+    Reval E (Comma A [R2]) R3 -> 
+    Reval E (Comma A [R_Or R1 R2]) R3
 
-  | Reval_Imp_Intro : forall A R1 R2, 
-    Reval (Comma A [R1]) R2 -> 
-    Reval A (R_Imp R1 R2)
+  | Reval_Imp_Intro : forall E A R1 R2, 
+    Reval E (Comma A [R1]) R2 -> 
+    Reval E A (R_Imp R1 R2)
 
-  | Reval_Imp_Elim : forall A R1 R2 R3, 
-    Reval A R1 -> 
-    Reval (Comma A [R2]) R3 -> 
-    Reval (Comma A [R_Imp R1 R2]) R3.
+  | Reval_Imp_Elim : forall E A R1 R2 R3, 
+    Reval E A R1 -> 
+    Reval E (Comma A [R2]) R3 -> 
+    Reval E (Comma A [R_Imp R1 R2]) R3.
 
     (*
   | Reval_Forall_Intro : forall (A:Assumptions) 
@@ -125,6 +126,8 @@ Inductive Reval : Assumptions -> Resolute -> Prop :=
       Reval (Comma A [(R_Exists tp pred)]) R3.
 
     *)
+
+Print Reval.
 
 Open Scope string.
 
@@ -302,6 +305,18 @@ Definition test_model := {|
 			filter_exists(filter, comp_context, conn) and filter_not_bypassed(filter, comp_context, msg_type) and filter_implemented(filter)
 *)
 
+(*
+Definition ex1_filter_added : Resolute :=
+  R_And (R_Goal filter_exists) (R_And (R_Goal filter_not_bypassed) (R_Goal filter_implemented)).
+
+Definition ex2_filter_added : Resolute :=
+  R_And 
+  (R_Imp (R_And (R_Goal filter) (R_And (R_Goal comp_context) (R_Goal conn))) (R_Goal filter_exists))
+   (R_And 
+   (R_Imp (R_And (R_Goal filter) (R_And (R_Goal comp_context) (R_Goal msg_type))) (R_Goal filter_not_bypassed)) 
+   (R_Imp (R_Goal filter) (R_Goal filter_implemented))).
+*)
+
 Definition and_template : Resolute := R_And (R_Goal 0 []) (R_Goal 0 []).
 Definition imp_template : Resolute := R_Imp (R_Goal 0 []) (R_Goal 0 []).
 
@@ -324,18 +339,6 @@ Definition filter_exists : TargetT := 0.
 Definition filter_not_bypassed : TargetT := 1.
 Definition filter_implemented : TargetT := 2.
 
-(*
-Definition ex1_filter_added : Resolute :=
-  R_And (R_Goal filter_exists) (R_And (R_Goal filter_not_bypassed) (R_Goal filter_implemented)).
-
-Definition ex2_filter_added : Resolute :=
-  R_And 
-  (R_Imp (R_And (R_Goal filter) (R_And (R_Goal comp_context) (R_Goal conn))) (R_Goal filter_exists))
-   (R_And 
-   (R_Imp (R_And (R_Goal filter) (R_And (R_Goal comp_context) (R_Goal msg_type))) (R_Goal filter_not_bypassed)) 
-   (R_Imp (R_Goal filter) (R_Goal filter_implemented))).
-*)
-
 Definition bar : list Arg := [filter; comp_context; conn].
 
 Definition filter_added : Resolute :=
@@ -347,17 +350,20 @@ Definition copland_filter_added := res_to_copland test_model filter_added.
 
 Compute copland_filter_added.
 
+Definition nullExternal (R:Resolute) : bool :=
+false.
+
 Example test_filter_added :
 (
-Reval [] (R_Goal (filter_exists) ([filter; comp_context; conn]))
+Reval nullExternal [] (R_Goal (filter_exists) ([filter; comp_context; conn]))
 ) ->
 (
-Reval [] (R_Goal (filter_not_bypassed) ([filter; comp_context; msg_type]))
+Reval nullExternal [] (R_Goal (filter_not_bypassed) ([filter; comp_context; msg_type]))
 ) ->
 (
-Reval [] (R_Goal (filter_implemented) ([filter]))
+Reval nullExternal [] (R_Goal (filter_implemented) ([filter]))
 ) -> 
-Reval [] filter_added.
+Reval nullExternal [] filter_added.
 Proof.
 intros. unfold filter_added. apply Reval_And_Intro.
 - apply H.
@@ -367,7 +373,7 @@ intros. unfold filter_added. apply Reval_And_Intro.
 Qed.
 
 Example test_filter_added2 :
-Reval 
+Reval nullExternal
 [
   (R_Goal (filter_exists) ([filter; comp_context; conn]));
   (R_Goal (filter_not_bypassed) ([filter; comp_context; msg_type]));
@@ -384,7 +390,7 @@ intros. unfold filter_added. apply Reval_And_Intro.
 Qed.
 
 Example test_filter_added3 :
-Reval 
+Reval nullExternal
 [
   (R_Goal (filter_exists) ([filter; comp_context; conn]));
   (R_Goal (filter_not_bypassed) ([filter; comp_context; msg_type]));
@@ -397,6 +403,53 @@ intros. unfold filter_added. apply Reval_And_Intro.
 - apply Reval_And_Intro.
   + apply Reval_ID_List. simpl. auto.
   + apply Reval_ID_List. simpl. auto.
+Qed.
+
+Fixpoint nat_list_eqb (l1:list nat) (l2:list nat) : bool :=
+match l1 with
+  | h1::t1 =>
+    match l2 with
+      | h2::t2 => if Nat.eqb h1 h2 then nat_list_eqb t1 t2 else false
+      | nil => false
+    end
+  | nil =>
+    match l2 with
+      | h2::t2 => false
+      | nil => true
+    end
+end. 
+
+
+Definition testExternal (R:Resolute) : bool :=
+match R with
+  | R_Goal name args =>
+    if Nat.eqb name filter_exists 
+    then nat_list_eqb args [filter; comp_context; conn]
+    else
+    if Nat.eqb name filter_not_bypassed
+    then nat_list_eqb args [filter; comp_context; msg_type]
+    else
+    if Nat.eqb name filter_implemented 
+    then nat_list_eqb args [filter]
+    else false
+  | _ => false
+end.
+
+
+Example test_filter_added4 :
+Reval testExternal [] filter_added.
+Proof.
+intros. unfold filter_added. apply Reval_And_Intro.
+- apply Reval_External_True.
+  + reflexivity.
+  + apply Reval_R.
+- apply Reval_And_Intro.
+  + apply Reval_External_True. 
+    * reflexivity.
+    * apply Reval_R.
+  + apply Reval_External_True. 
+    * reflexivity.
+    * apply Reval_R.
 Qed.
 
 (* ====================================== *)
